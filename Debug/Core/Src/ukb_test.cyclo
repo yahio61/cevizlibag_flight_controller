@@ -1,0 +1,7 @@
+../Core/Src/ukb_test.c:29:6:ukb_test_init	1
+../Core/Src/ukb_test.c:35:6:process_received_datas	5
+../Core/Src/ukb_test.c:74:5:unpack_datas_for_test	5
+../Core/Src/ukb_test.c:135:6:pack_datas_for_test	1
+../Core/Src/ukb_test.c:194:17:get_test_mode	1
+../Core/Src/ukb_test.c:210:6:ukb_test_stat_update	1
+../Core/Src/ukb_test.c:225:9:calc_checksum	2
