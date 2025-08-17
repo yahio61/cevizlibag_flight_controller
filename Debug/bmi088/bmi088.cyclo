@@ -1,7 +1,7 @@
-D:/st_kutuphaneler/bmi_088_library/bmi088/bmi088.c:111:9:bmi088_init	4
-D:/st_kutuphaneler/bmi_088_library/bmi088/bmi088.c:143:6:bmi088_config	14
-D:/st_kutuphaneler/bmi_088_library/bmi088/bmi088.c:234:6:bmi088_update	10
-D:/st_kutuphaneler/bmi_088_library/bmi088/bmi088.c:325:6:bmi088_set_accel_INT	1
-D:/st_kutuphaneler/bmi_088_library/bmi088/bmi088.c:330:6:bmi088_set_gyro_INT	1
-D:/st_kutuphaneler/bmi_088_library/bmi088/bmi088.c:335:9:bmi088_getGyroChipId	1
-D:/st_kutuphaneler/bmi_088_library/bmi088/bmi088.c:342:6:get_offset	3
+/home/yahya/STM32CubeIDE/workspace_1.19.0/bmi_088_library/bmi088/bmi088.c:111:9:bmi088_init	4
+/home/yahya/STM32CubeIDE/workspace_1.19.0/bmi_088_library/bmi088/bmi088.c:143:6:bmi088_config	14
+/home/yahya/STM32CubeIDE/workspace_1.19.0/bmi_088_library/bmi088/bmi088.c:234:6:bmi088_update	10
+/home/yahya/STM32CubeIDE/workspace_1.19.0/bmi_088_library/bmi088/bmi088.c:325:6:bmi088_set_accel_INT	1
+/home/yahya/STM32CubeIDE/workspace_1.19.0/bmi_088_library/bmi088/bmi088.c:330:6:bmi088_set_gyro_INT	1
+/home/yahya/STM32CubeIDE/workspace_1.19.0/bmi_088_library/bmi088/bmi088.c:335:9:bmi088_getGyroChipId	1
+/home/yahya/STM32CubeIDE/workspace_1.19.0/bmi_088_library/bmi088/bmi088.c:342:6:get_offset	3

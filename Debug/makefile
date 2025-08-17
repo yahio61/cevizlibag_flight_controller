@@ -62,8 +62,8 @@ all: main-build
 main-build: cevizlibag_flight_controller.elf secondary-outputs
 
 # Tool invocations
-cevizlibag_flight_controller.elf cevizlibag_flight_controller.map: $(OBJS) $(USER_OBJS) C:\Users\yahya\STM32CubeIDE\workspace_1.18.1\cevizlibag_flight_controller\STM32F446RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "cevizlibag_flight_controller.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\yahya\STM32CubeIDE\workspace_1.18.1\cevizlibag_flight_controller\STM32F446RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="cevizlibag_flight_controller.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
+cevizlibag_flight_controller.elf cevizlibag_flight_controller.map: $(OBJS) $(USER_OBJS) /home/yahya/STM32CubeIDE/workspace_1.19.0/cevizlibag_flight_controller/STM32F446RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "cevizlibag_flight_controller.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/yahya/STM32CubeIDE/workspace_1.19.0/cevizlibag_flight_controller/STM32F446RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="cevizlibag_flight_controller.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

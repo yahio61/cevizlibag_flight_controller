@@ -33,12 +33,12 @@
 		<link>
 			<name>bme_280</name>
 			<type>2</type>
-			<location>D:/st_kutuphaneler/bme_280_library/bme_280</location>
+			<location>/home/yahya/STM32CubeIDE/workspace_1.19.0/bme_280_library/bme_280</location>
 		</link>
 		<link>
 			<name>bmi088</name>
 			<type>2</type>
-			<location>D:/st_kutuphaneler/bmi_088_library/bmi088</location>
+			<location>/home/yahya/STM32CubeIDE/workspace_1.19.0/bmi_088_library/bmi088</location>
 		</link>
 	</linkedResources>
 </projectDescription>
