@@ -6,6 +6,7 @@
 union DataPack veriler;
 uint8_t bufferPrint[400];
 
+
 static uint8_t calculateCRC()
 {
 	int check_sum = 0;
@@ -15,19 +16,17 @@ static uint8_t calculateCRC()
 	return (uint8_t) (check_sum % 256);
 }
 
-static void sendRF()
+/**
+  * @brief  Transmits the data.
+  * @param  data: Pointer to the data string.
+  * @param  huart: Pointer to the uart handler typedef.
+  * @retval None
+  */
+void send_datas(UART_HandleTypeDef* huart, uint8_t* data, uint16_t len)
 {
-
-		//HAL_UART_Transmit_DMA(&huart4, "hello\n\r", 7);
-
+	HAL_UART_Transmit(huart, data, len, 50);
 }
 
-static void sendPC()
-{
-
-	HAL_UART_Transmit(&TTL_HNDLR, veriler.arr , sizeof(veriler.dataYapi), 50);
-
-}
 
 uint8_t* packDatas(bmi088_struct_t *bmi, bme280_struct_t *bme, S_GPS_L86_DATA* gps , power_t *power_s, uint16_t status)
 {
@@ -82,26 +81,10 @@ uint8_t* packDatas(bmi088_struct_t *bmi, bme280_struct_t *bme, S_GPS_L86_DATA* g
 	veriler.dataYapi.LF	= '\n';
 
 	return veriler.arr;
-
-#ifdef PRINT_DECODED
-	if(power_s->voltage > LOW_BAT){
-		//lora_activate();
-		//sendRF();
-		//sendPC();
-	}
-	else{
-		//sendPC();
-		//lora_deactivate();
-	}
-#endif
-#ifndef PRINT_DECODED
-	printDatas();
-#endif
 }
 
 void printDatas()
 {
-
 	  sprintf((char*)bufferPrint, "\r\n\n\n\r%X min: %d  sec: %d  stat: %d  volt: %.2f  mWatt/s: %d  temp: %.1f\r\n"
 			  "hum:%d  alt:%.1f maxAlt:%d altGps: %.1f  lat: %f  lon: %f\r\n"
 			  "angle:%.1f  pitch:%d  roll:%d  yaw:%d | real pitch: %.1f  roll: %.1f  yaw: %.1f\r\n"
@@ -120,3 +103,5 @@ void printDatas()
 
 	  HAL_UART_Transmit(&TTL_HNDLR, bufferPrint , strlen((char*)bufferPrint), 50);
 }
+
+

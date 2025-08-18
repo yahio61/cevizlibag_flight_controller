@@ -83,4 +83,5 @@ typedef union Address {
 
 uint8_t* packDatas(bmi088_struct_t *bmi, bme280_struct_t *bme, S_GPS_L86_DATA* gps, power_t *power_s, uint16_t status);
 void printDatas();
+void send_datas(UART_HandleTypeDef* huart, uint8_t* data, uint16_t len);
 #endif /* INC_DATAPACKING_H_ */

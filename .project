@@ -40,5 +40,10 @@
 			<type>2</type>
 			<location>/home/yahya/STM32CubeIDE/workspace_1.19.0/bmi_088_library/bmi088</location>
 		</link>
+		<link>
+			<name>e22_lib</name>
+			<type>2</type>
+			<location>/home/yahya/STM32CubeIDE/workspace_1.19.0/E22_library/e22_lib</location>
+		</link>
 	</linkedResources>
 </projectDescription>

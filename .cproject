@@ -52,6 +52,7 @@
 									<listOptionValue builtIn="false" value="../Drivers/CMSIS/Include"/>
 									<listOptionValue builtIn="false" value="/home/yahya/STM32CubeIDE/workspace_1.19.0/bmi_088_library/bmi088"/>
 									<listOptionValue builtIn="false" value="/home/yahya/STM32CubeIDE/workspace_1.19.0/bme_280_library/bme_280"/>
+									<listOptionValue builtIn="false" value="/home/yahya/STM32CubeIDE/workspace_1.19.0/E22_library/e22_lib"/>
 								</option>
 								<inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c.526481993" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c"/>
 							</tool>
@@ -82,6 +83,7 @@
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="bme_280"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="bmi088"/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="e22_lib"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

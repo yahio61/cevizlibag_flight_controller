@@ -205,8 +205,6 @@ int main(void)
     //VIEW_GPS()											// Read and write to TTL raw GNSS raw value.
 
     // Lora module config.
-    e22_config_mode(&lora_1);
-    HAL_Delay(20);
     lora_init();
 
     // Config phase finished beep.
@@ -456,11 +454,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     {
 		  if(power_s.voltage > 7.0)
 		  {
-			  e22_transmit_mode(&lora_1);
-			  e22_transmit(&lora_1, packed_datas_p, &TELEM_UART_HNDLR, 64);
-
+			  e22_chMode_transmit(&lora_1);
+			  send_datas(&TELEM_UART_HNDLR, packed_datas_p, 64);
 		  }
-		  e22_transmit(&lora_1, packed_datas_p, &TTL_HNDLR, 64);
+		  send_datas(&TTL_HNDLR, packed_datas_p, 64);
     }
 
 }
@@ -496,12 +493,16 @@ void lora_init(void)
 	lora_1.wor_cycle		=	E22_WOR_CYCLE_1000;
 	lora_1.channel			=	25;
 
+	lora_1.pins.m0_pin = RF_M0_Pin;
+	lora_1.pins.m0_pin_port = RF_M0_GPIO_Port;
+	lora_1.pins.m1_pin = RF_M1_Pin;
+	lora_1.pins.m1_pin_port = RF_M1_GPIO_Port;
+
 	e22_init(&lora_1, &TELEM_UART_HNDLR);
 
 	HAL_UART_DeInit(&TELEM_UART_HNDLR);
 	TELEM_UART_HNDLR.Init.BaudRate = 115200;
 	HAL_UART_Init(&TELEM_UART_HNDLR);
-
 }
 /* USER CODE END 4 */
 
