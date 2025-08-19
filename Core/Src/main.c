@@ -74,13 +74,20 @@ flight_data_t rocket_flight_datas;
 uint8_t last_mode = 0;
 extern float euler[3];
 S_GPS_L86_DATA gps_s;
-uint8_t is_1second = 0;
+
 uint32_t main_mos_counter = 0;
 uint32_t apoge_mos_counter = 0;
 extern flight_states_e rocket_status;
 static e22_conf_struct_t lora_1;
 uint8_t *packed_datas_p;
 power_t power_s;
+
+uint8_t is_1000ms = 0;
+uint8_t is_200ms = 0;
+uint8_t is_10ms = 0;
+uint8_t is_1ms = 0;
+
+int sayac = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -213,15 +220,18 @@ int main(void)
     HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, GPIO_PIN_RESET);
 
     // Start timer interrupts.
+    HAL_TIM_Base_Start_IT(&htim3);
+    HAL_TIM_Base_Start_IT(&htim4);
     HAL_TIM_Base_Start_IT(&htim5);
     HAL_TIM_Base_Start_IT(&htim6);
-    HAL_TIM_Base_Start_IT(&htim7);
+    //HAL_TIM_Base_Start_IT(&htim7);
     HAL_TIM_Base_Start_IT(&htim9);
 
     // Start receiving DMA form GNSS UART.
     HAL_UART_Receive_DMA(&RS232_HNDLR, dma_rx_buf, RX_BUFFER_LEN + 6);
     __HAL_UART_ENABLE_IT(&RS232_HNDLR, UART_IT_IDLE);
 
+    //TIM9->ARR = 10000;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -232,8 +242,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-	  bme280_update(&bme_sensor_s);
-	  bmi088_update(&bmi_imu_s);
+
 
 	  if(get_test_mode() != last_mode)
 	  {
@@ -257,11 +266,9 @@ int main(void)
 			  break;
 		  }
 	  }
-	  if(is_1second)	// This condition works at 1Hz.
+	  if(is_1000ms)	// This condition works at 1Hz.
 	  {
-		  is_1second = 0;
 		  Usr_GpsL86GetValues(&gps_s, &GPS_UART_HNDLR);
-
 		  HAL_ADC_Start(&hadc1);
 		  HAL_ADC_Start(&hadc2);
 		  HAL_ADC_PollForConversion(&hadc1, 2);
@@ -271,6 +278,29 @@ int main(void)
 		  power_s.voltage = volt + 0.05; // Offset val added.
 		  power_s.current = current;
 
+		  sprintf(str, "sayac = %d", sayac);
+		  serial_println(str, &TTL_HNDLR);
+		  sayac = 0;
+
+		  is_1000ms = 0;
+	  }
+	  if(is_200ms)	// This condition works at 5Hz.
+	  {
+		  packed_datas_p = packDatas(&bmi_imu_s, &bme_sensor_s, &gps_s, &power_s, rocket_status + 1);
+		  //send_datas(&TTL_HNDLR, packed_datas_p, 64);	// Sends the packets via uart bridge to GCS.
+
+		  sayac++;
+		  is_200ms = 0;
+	  }
+	  if(is_10ms)// This condition works at 1000Hz.
+	  {
+		  is_10ms = 0;
+	  }
+	  if(is_1ms)	// This condition works at 1kHz.
+	  {
+		  bme280_update(&bme_sensor_s);
+		  bmi088_update(&bmi_imu_s);
+		  is_1ms = 0;
 	  }
   }
   /* USER CODE END 3 */
@@ -348,6 +378,7 @@ void bmi_callback(bmi088_struct_t *BMI)
 	updateQuaternion(-BMI->datas.gyro_z * M_PI / 180.0, BMI->datas.gyro_x * M_PI / 180.0, -BMI->datas.gyro_y * M_PI / 180.0, BMI->datas.delta_time);
 	quaternionToEuler();
 }
+
 uint8_t bmi088_begin(void)
 {
 	//Acc config
@@ -391,7 +422,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-    if (htim->Instance == TIM3)
+    if (htim->Instance == TIM3)	// This repeats in every 1000ms
     {
 		rocket_flight_datas.altitude = test_datas.altitude;
 		rocket_flight_datas.accel_X = test_datas.accel_X;
@@ -402,8 +433,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		rocket_flight_datas.angle_Z = test_datas.angle_Z;
 		algorithm_1_update(&rocket_flight_datas);
 		ukb_test_stat_update(rocket_status);
+
+		is_1000ms = 1;
     }
-    if (htim->Instance == TIM4)
+
+    if (htim->Instance == TIM4)	// This repeats in every 100ms
     {
 		test_datas.altitude = bme_sensor_s.datas.height;
 		test_datas.pressure = bme_sensor_s.datas.pressure;
@@ -416,8 +450,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     	uint8_t datas_packed[36];
     	pack_datas_for_test(datas_packed, &test_datas);
     	HAL_UART_Transmit(&RS232_HNDLR, datas_packed, 36, 50);
+
+    	is_200ms = 1;
     }
-    if(htim->Instance == TIM5)
+
+    if(htim->Instance == TIM5)	// This repeats in every 10ms
     {
 		rocket_flight_datas.altitude = bme_sensor_s.datas.altitude;
 		rocket_flight_datas.accel_X = bmi_imu_s.datas.acc_x;
@@ -427,15 +464,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		rocket_flight_datas.angle_Y = euler[1];	//bmi_imu_s.datas.gyro_y_angle;
 		rocket_flight_datas.angle_Z = euler[2];	//bmi_imu_s.datas.gyro_z_angle;
 
-		packed_datas_p = packDatas(&bmi_imu_s, &bme_sensor_s, &gps_s, &power_s, rocket_status + 1);
 		algorithm_1_update(&rocket_flight_datas);
+
+		is_10ms = 1;
     }
-    if(htim->Instance == TIM6)
+
+    if(htim->Instance == TIM6)	// This repeats in every 1ms
     {
-    	//packDatas(&bmi_imu_s, &bme_sensor_s, 0, 0, 0);
-    	is_1second = 1;
+    	is_1ms = 1;
     }
-    if(htim->Instance == TIM7)
+/*
+    if(htim->Instance == TIM7)	// This block is for external pins lie buzzers leds.
     {
     	if(!(--main_mos_counter))
     	{
@@ -450,14 +489,20 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     		HAL_GPIO_WritePin(APOGEE_LED_GPIO_Port, APOGEE_LED_Pin, GPIO_PIN_SET);
     	}
     }
+ */
     if(htim->Instance == TIM9)
     {
+
 		  if(power_s.voltage > 7.0)
 		  {
 			  e22_chMode_transmit(&lora_1);
 			  send_datas(&TELEM_UART_HNDLR, packed_datas_p, 64);
 		  }
-		  send_datas(&TTL_HNDLR, packed_datas_p, 64);
+		  else
+		  {
+			  e22_chMode_sleep(&lora_1);
+		  }
+
     }
 
 }
@@ -468,6 +513,7 @@ void main_deploy()
 	HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(MAIN_LED_GPIO_Port, MAIN_LED_Pin, GPIO_PIN_RESET);
 	main_mos_counter = 50;
+
 }
 void apoge_deploy()
 {
@@ -475,6 +521,11 @@ void apoge_deploy()
 	HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(APOGEE_LED_GPIO_Port, APOGEE_LED_Pin, GPIO_PIN_RESET);
 	apoge_mos_counter = 50;
+}
+
+void calc_power(power_t* pow)
+{
+
 }
 
 void lora_init(void)
@@ -491,7 +542,7 @@ void lora_init(void)
 	lora_1.lbt				=	E22_LBT_DISABLE;
 	lora_1.wor				=	E22_WOR_RECEIVER;
 	lora_1.wor_cycle		=	E22_WOR_CYCLE_1000;
-	lora_1.channel			=	25;
+	lora_1.channel			=	35;
 
 	lora_1.pins.m0_pin = RF_M0_Pin;
 	lora_1.pins.m0_pin_port = RF_M0_GPIO_Port;
