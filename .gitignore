@@ -41,6 +41,8 @@
 *.su
 *.idb
 *.pdb
+*.cyclo
+
 
 # Kernel Module Compile Results
 *.mod*

@@ -78,7 +78,7 @@ void algorithm_1_update(flight_data_t *rocket)
 	switch(rocket_status)
 	{
 		case STAT_ROCKET_READY:						//rising detection
-			if(velocity > RISING_VELOCITY_TRESHOLD || rocket->accel_Y > RISING_G_TRESHOLD)
+			if(velocity > RISING_VELOCITY_TRESHOLD || rocket->accel_y > RISING_G_TRESHOLD)
 			{
 				counter++;
 			}
@@ -97,7 +97,7 @@ void algorithm_1_update(flight_data_t *rocket)
 			break;
 
 		case STAT_FLIGHT_STARTED:					//Burnout detect
-			if(rocket->accel_Y < BURNOUT_THRESHOLD)
+			if(rocket->accel_y < BURNOUT_THRESHOLD)
 			{
 				counter++;
 			}
@@ -133,7 +133,7 @@ void algorithm_1_update(flight_data_t *rocket)
 			break;
 
 		case STAT_ARMING_DISABLE:					//Falling detection || First parachute
-			if(velocity < FALLING_VELOCITY_TRESHOLD || rocket->angle_X > ANGLE_THRESHOLD || rocket->angle_Y > ANGLE_THRESHOLD || rocket->angle_Z > ANGLE_THRESHOLD)
+			if(velocity < FALLING_VELOCITY_TRESHOLD || rocket->angle_x > ANGLE_THRESHOLD || rocket->angle_y > ANGLE_THRESHOLD || rocket->angle_z > ANGLE_THRESHOLD)
 			{
 				counter++;
 			}

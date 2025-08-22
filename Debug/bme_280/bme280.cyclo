@@ -1,5 +1,0 @@
-/home/yahya/STM32CubeIDE/workspace_1.19.0/bme_280_library/bme_280/bme280.c:19:13:bme280_getVals	3
-/home/yahya/STM32CubeIDE/workspace_1.19.0/bme_280_library/bme_280/bme280.c:39:13:bme280_get_altitude	3
-/home/yahya/STM32CubeIDE/workspace_1.19.0/bme_280_library/bme_280/bme280.c:50:6:bme280_config	2
-/home/yahya/STM32CubeIDE/workspace_1.19.0/bme_280_library/bme_280/bme280.c:113:9:bme280_init	3
-/home/yahya/STM32CubeIDE/workspace_1.19.0/bme_280_library/bme_280/bme280.c:129:6:bme280_update	3

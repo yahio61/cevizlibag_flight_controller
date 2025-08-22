@@ -48,7 +48,12 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
-
+enum working_mode_e
+{
+	MODE_NORMAL = 0,
+	MODE_SIT_TEST,
+	MODE_SUT_TEST,
+};
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/

@@ -9,11 +9,6 @@
 #define INC_CONFIGURATION_H_
 #include <stdint.h>
 
-
-
-
-
-
 #define TO_MG 	(float)101.94
 #define TO_SI	(float)0.00981
 
@@ -73,13 +68,17 @@ typedef enum flight_states{
 
 typedef struct flight_data
 {
-  float altitude;   //m
-  float accel_X;    //m/s^2
-  float accel_Y;    //m/s^2
-  float accel_Z;    //m/s^2
-  float angle_X;    //degree
-  float angle_Y;    //degree
-  float angle_Z;    //degree
+  float altitude;   	// Altitude by ground level. (m)
+  float alt_sea_level;	// Altitude by sea level. (m)
+  float velocity;		// This is value is vertical velocity measured by integral of pressure sensor. (m/s)
+  float velocity_est;	// This is value is vertical velocity estimation measured by double integral of accelerometer sensor. (m/s)
+  float accel_x;    	// (m/s^2)
+  float accel_y;    	// (m/s^2)
+  float accel_z;    	// (m/s^2)
+  float angle_x;    	// (degree)
+  float angle_y;    	// (degree)
+  float angle_z;    	// (degree)
+  float abs_angle;		//  Absolute angle of rocket by the world surface vector. (degree)
 }flight_data_t;
 
 typedef union uint16_to_uint8
@@ -92,6 +91,7 @@ typedef struct power
 {
 	float voltage;
 	float current;
+	uint32_t last_time;
 }power_t;
 
 #endif /* INC_CONFIGURATION_H_ */

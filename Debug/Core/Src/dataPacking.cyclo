@@ -1,4 +1,0 @@
-../Core/Src/dataPacking.c:10:16:calculateCRC	2
-../Core/Src/dataPacking.c:25:6:send_datas	1
-../Core/Src/dataPacking.c:31:10:packDatas	2
-../Core/Src/dataPacking.c:86:6:printDatas	4

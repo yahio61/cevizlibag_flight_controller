@@ -29,12 +29,12 @@ typedef struct UKB_test
 {
   float altitude;   //m
   float pressure;   //mBar
-  float accel_X;    //m/s^2
-  float accel_Y;    //m/s^2
-  float accel_Z;    //m/s^2
-  float angle_X;    //degree
-  float angle_Y;    //degree
-  float angle_Z;    //degree
+  float accel_x;    //m/s^2
+  float accel_y;    //m/s^2
+  float accel_z;    //m/s^2
+  float angle_x;    //degree
+  float angle_y;    //degree
+  float angle_z;    //degree
 }UKB_test_t;
 
 

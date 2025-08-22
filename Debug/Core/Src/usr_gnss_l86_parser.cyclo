@@ -1,6 +1,0 @@
-../Core/Src/usr_gnss_l86_parser.c:77:6:UsrGpsL86Init	1
-../Core/Src/usr_gnss_l86_parser.c:83:6:HAL_UART_RxCpltCallback	2
-../Core/Src/usr_gnss_l86_parser.c:93:6:Usr_GpsL86GetValues	2
-../Core/Src/usr_gnss_l86_parser.c:116:10:getRmc	10
-../Core/Src/usr_gnss_l86_parser.c:170:10:formatLatLong	1
-../Core/Src/usr_gnss_l86_parser.c:181:10:getGGA	5

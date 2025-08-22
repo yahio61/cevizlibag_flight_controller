@@ -1,6 +1,0 @@
-../Core/Src/queternion.c:13:6:quaternon_init	1
-../Core/Src/queternion.c:18:6:updateQuaternion	1
-../Core/Src/queternion.c:39:6:quaternionToEuler	1
-../Core/Src/queternion.c:46:7:quaternionToTheta	1
-../Core/Src/queternion.c:66:6:getInitialQuaternion	1
-../Core/Src/queternion.c:95:6:quaternionSet_zero	1

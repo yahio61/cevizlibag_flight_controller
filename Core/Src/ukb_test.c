@@ -92,40 +92,40 @@ int unpack_datas_for_test(uint8_t *packed_datas, UKB_test_t *ukb_s)
     var.array[arr_1] = packed_datas[10];
     var.array[arr_2] = packed_datas[11];
     var.array[arr_3] = packed_datas[12];
-    ukb_s->accel_X = var.num;
-    ukb_s->accel_X *= TO_MG;
+    ukb_s->accel_x = var.num;
+    ukb_s->accel_x *= TO_MG;
 
     var.array[arr_0] = packed_datas[13];
     var.array[arr_1] = packed_datas[14];
     var.array[arr_2] = packed_datas[15];
     var.array[arr_3] = packed_datas[16];
-    ukb_s->accel_Y = var.num;
-    ukb_s->accel_Y *= TO_MG;
+    ukb_s->accel_y = var.num;
+    ukb_s->accel_y *= TO_MG;
 
     var.array[arr_0] = packed_datas[17];
     var.array[arr_1] = packed_datas[18];
     var.array[arr_2] = packed_datas[19];
     var.array[arr_3] = packed_datas[20];
-    ukb_s->accel_Z = var.num;
-    ukb_s->accel_Z *= TO_MG;
+    ukb_s->accel_z = var.num;
+    ukb_s->accel_z *= TO_MG;
 
     var.array[arr_0] = packed_datas[21];
     var.array[arr_1] = packed_datas[22];
     var.array[arr_2] = packed_datas[23];
     var.array[arr_3] = packed_datas[24];
-    ukb_s->angle_X = var.num;
+    ukb_s->angle_x = var.num;
 
     var.array[arr_0] = packed_datas[25];
     var.array[arr_1] = packed_datas[26];
     var.array[arr_2] = packed_datas[27];
     var.array[arr_3] = packed_datas[28];
-    ukb_s->angle_Y = var.num;
+    ukb_s->angle_y = var.num;
 
     var.array[arr_0] = packed_datas[29];
     var.array[arr_1] = packed_datas[30];
     var.array[arr_2] = packed_datas[31];
     var.array[arr_3] = packed_datas[32];
-    ukb_s->angle_Z = var.num;
+    ukb_s->angle_z = var.num;
 
     return 0;
   }
@@ -149,37 +149,37 @@ void pack_datas_for_test(uint8_t *packed_datas, UKB_test_t *ukb_s)
   packed_datas[7] = var.array[arr_2];
   packed_datas[8] = var.array[arr_3];
 
-  var.num = ukb_s->accel_X;
+  var.num = ukb_s->accel_x;
   packed_datas[9] = var.array[arr_0];
   packed_datas[10] = var.array[arr_1];
   packed_datas[11] = var.array[arr_2];
   packed_datas[12] = var.array[arr_3];
 
-  var.num = ukb_s->accel_Y;
+  var.num = ukb_s->accel_y;
   packed_datas[13] = var.array[arr_0];
   packed_datas[14] = var.array[arr_1];
   packed_datas[15] = var.array[arr_2];
   packed_datas[16] = var.array[arr_3];
 
-  var.num = ukb_s->accel_Z;
+  var.num = ukb_s->accel_z;
   packed_datas[17] = var.array[arr_0];
   packed_datas[18] = var.array[arr_1];
   packed_datas[19] = var.array[arr_2];
   packed_datas[20] = var.array[arr_3];
 
-  var.num = ukb_s->angle_X;
+  var.num = ukb_s->angle_x;
   packed_datas[21] = var.array[arr_0];
   packed_datas[22] = var.array[arr_1];
   packed_datas[23] = var.array[arr_2];
   packed_datas[24] = var.array[arr_3];
 
-  var.num = ukb_s->angle_Y;
+  var.num = ukb_s->angle_y;
   packed_datas[25] = var.array[arr_0];
   packed_datas[26] = var.array[arr_1];
   packed_datas[27] = var.array[arr_2];
   packed_datas[28] = var.array[arr_3];
 
-  var.num = ukb_s->angle_Z;
+  var.num = ukb_s->angle_z;
   packed_datas[29] = var.array[arr_0];
   packed_datas[30] = var.array[arr_1];
   packed_datas[31] = var.array[arr_2];
