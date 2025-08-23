@@ -42,6 +42,8 @@
 *.idb
 *.pdb
 *.cyclo
+Debug/
+Release/
 
 
 # Kernel Module Compile Results
@@ -55,3 +57,4 @@ dkms.conf
 
 # debug information files
 *.dwo
+

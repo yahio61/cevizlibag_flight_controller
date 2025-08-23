@@ -25,7 +25,7 @@ SUBDIRS := \
 Core/Src \
 Core/Startup \
 Drivers/STM32F4xx_HAL_Driver/Src \
-bme_280 \
-bmi088 \
-e22_lib \
+Drivers/libraries/E22_lora/e22_lib \
+Drivers/libraries/bme280/bme_280 \
+Drivers/libraries/bmi088/bmi088 \
 
