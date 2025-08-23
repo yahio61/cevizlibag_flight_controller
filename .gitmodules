@@ -1,0 +1,9 @@
+[submodule "Drivers/libraries/E22_lora"]
+	path = Drivers/libraries/E22_lora
+	url = https://github.com/yahio61/E22_library.git
+[submodule "Drivers/libraries/bme280"]
+	path = Drivers/libraries/bme280
+	url = https://github.com/yahio61/bme_280_library.git
+[submodule "Drivers/libraries/bmi088"]
+	path = Drivers/libraries/bmi088
+	url = https://github.com/yahio61/bmi_088_library.git
