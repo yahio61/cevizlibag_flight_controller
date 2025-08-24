@@ -9,13 +9,15 @@
 #include "ukb_test.h"
 //#include "queternion.h"
 
+#define DEBUG_ALGORITHM
+
 extern int is_BME_ok;
 
 uint32_t currentTime_1 = 0;
 uint32_t currentTime_2 = 0;
 uint32_t lastTime_1 = 0;
 uint32_t lastTime_2 = 0;
-float lastAltitude_1 = 0.0;
+static float last_altitude = 0.0;
 float lastAltitude_2 = 0.0;
 
 /*
@@ -27,11 +29,12 @@ static int secondP_counter = 0;
 uint32_t algorithm_1_start_time_u32 = 0;
 uint32_t algorithm_2_start_time_u32 = 0;
 
-flight_states_e rocket_status = STAT_ROCKET_READY;
+static flight_states_e rocket_status = STAT_ROCKET_READY;
 
 uint32_t counter = 0;
-uint8_t	is_updated = 0;
+uint32_t counter_2 = 0;
 
+extern uint8_t	is_new_test_data;
 uint8_t buffer_alg[100];
 
 /*
@@ -41,27 +44,34 @@ static double sqr(double nmbr)
 }
 */
 
+static float resultant_accel(float accel_x, float accel_y, float accel_z)
+{
+	return (fabs(accel_z) / (accel_z)) * sqrt(accel_x * accel_x + accel_y * accel_y + accel_z * accel_z);
+}
+
 void reset_algorithm_status()
 {
 	rocket_status = STAT_ROCKET_READY;
-
 }
 
 /*
- * it works only with BME280 pressure sensor. Measures the vertical velocity.
- * it detects the first deploy
- * it detecets the second deploy via altitude
+ * @brief	This function works pressure and IMU sensor. Uses the vertical velocity,
+ * 			angles the altitude. Detects the first deploy with angle or velocity.
+ * 			Detecets the second deploy via altitude only.
+ *
+ * @param	(flight_data_t) rocket: Struct which includes rocket attitude.
+ * 			(working_mode_e) mode: Rocket's working mode. SIT_TEST, SUT_TEST or NORMAL.
+ *
+ * @retval none
  */
-void algorithm_1_update(flight_data_t *rocket)
+flight_states_e algorithm_update(flight_data_t *rocket, uint32_t mode)
 {
 
-	float velocity = 0.0;
-
-	//velocity measuiring
 	currentTime_1 = HAL_GetTick();
 	uint32_t delta_time = currentTime_1 - lastTime_1;
-
-  if(delta_time >= 90)
+	float resultanted_accel = resultant_accel(rocket->accel_x, rocket->accel_y, rocket->accel_z);
+/*
+	if(delta_time >= 90)
   {
 	  float currentAltitude = rocket->altitude;
 	  velocity = (currentAltitude - lastAltitude_1) / ((float)(delta_time) / 1000);
@@ -71,14 +81,29 @@ void algorithm_1_update(flight_data_t *rocket)
 	  is_updated = 1;
   }
 
-  if(is_updated)
-  {
-	  is_updated = 0;
+*/
+	if(mode == MODE_SUT_TEST)
+	{
+		if(!is_new_test_data)
+		{
+			return rocket_status;
+		}
+		is_new_test_data = 0;
+		rocket->abs_angle = (rocket->angle_x > rocket->angle_y) ? rocket->angle_x : rocket->angle_y;
+		rocket->velocity = (rocket->altitude - last_altitude) / (float)delta_time * 1000.0;
+		last_altitude = rocket->altitude;
+		lastTime_1 = currentTime_1;
+		char str[200];
+		//sprintf(str, "delt time = %d", delta_time);
+		//sprintf((char*)str,"velocity= %f  test:alt = %f, acx=%f  acy=%f  acz=%f angx=%f angy=%f angz=%f", rocket->velocity, rocket->altitude,rocket->accel_x,  rocket->accel_y, rocket->accel_z, rocket->angle_x, rocket->angle_y, rocket->angle_z);
+		//sprintf(str, "resultanted accel = %f", resultanted_accel);
+		//serial_println((char*)str, &TTL_HNDLR);
+	}
 
 	switch(rocket_status)
 	{
 		case STAT_ROCKET_READY:						//rising detection
-			if(velocity > RISING_VELOCITY_TRESHOLD || rocket->accel_y > RISING_G_TRESHOLD)
+			if(rocket->velocity > RISING_VELOCITY_TRESHOLD || resultanted_accel > RISING_G_TRESHOLD)
 			{
 				counter++;
 			}
@@ -87,17 +112,18 @@ void algorithm_1_update(flight_data_t *rocket)
 				counter = 0;
 			}
 
-			if(counter == 2)
+			if(counter == 3)
 			{
 				rocket_status = STAT_FLIGHT_STARTED;
 				counter = 0;
-				//serial_println("Fligth started", &TTL_HNDLR);
-
+			#ifdef DEBUG_ALGORITHM
+				serial_println("Fligth started", &TTL_HNDLR);
+			#endif
 			}
 			break;
 
 		case STAT_FLIGHT_STARTED:					//Burnout detect
-			if(rocket->accel_y < BURNOUT_THRESHOLD)
+			if(resultanted_accel < BURNOUT_THRESHOLD)
 			{
 				counter++;
 			}
@@ -106,16 +132,18 @@ void algorithm_1_update(flight_data_t *rocket)
 				counter = 0;
 			}
 
-			if(counter == 1)
+			if(counter == 3)
 			{
 				rocket_status = STAT_MOTOR_BURNOUT;
 				counter = 0;
-				//serial_println("Burnout", &TTL_HNDLR);
+			#ifdef DEBUG_ALGORITHM
+				serial_println("Burnout detected", &TTL_HNDLR);
+			#endif
 			}
 			break;
 
-		case STAT_MOTOR_BURNOUT:					//Arming altitude achived
-			if(rocket->altitude > ARMING_ALTITUDE)
+		case STAT_MOTOR_BURNOUT:
+			if(rocket->altitude > ARMING_ALTITUDE)	//Arming altitude reached
 			{
 				counter++;
 			}
@@ -126,30 +154,54 @@ void algorithm_1_update(flight_data_t *rocket)
 
 			if(counter == 3)
 			{
-				rocket_status = STAT_ARMING_DISABLE;
+				rocket_status = STAT_ARMING_PASSED;
 				counter = 0;
-				//serial_println("Arming altitude achived", &TTL_HNDLR);
+			#ifdef DEBUG_ALGORITHM
+				serial_println("Arming altitude reached", &TTL_HNDLR);
+			#endif
 			}
 			break;
 
-		case STAT_ARMING_DISABLE:					//Falling detection || First parachute
-			if(velocity < FALLING_VELOCITY_TRESHOLD || rocket->angle_x > ANGLE_THRESHOLD || rocket->angle_y > ANGLE_THRESHOLD || rocket->angle_z > ANGLE_THRESHOLD)
+		case STAT_ARMING_PASSED:
+			if(rocket->velocity < FALLING_VELOCITY_TRESHOLD) //Falling detection via pressure sensor.
 			{
 				counter++;
+			}
+			else if(rocket->abs_angle > ANGLE_THRESHOLD)	//Falling detection via IMU sensor.
+			{
+				counter_2++;
 			}
 			else
 			{
 				counter = 0;
+				counter_2 = 0;
 			}
 
 			if(counter == 3)
 			{
-				rocket_status = STAT_P1_OK_P2_NO;
+				rocket_status = STAT_ALT_DECREASE;
 				counter = 0;
-				//serial_println("First parachute_deploy", &TTL_HNDLR);
-				apoge_deploy();
-
+			#ifdef DEBUG_ALGORITHM
+				serial_println("Altitude decreasing", &TTL_HNDLR);
+			#endif
 			}
+			else if(counter_2 == 3)
+			{
+				rocket_status = STAT_ANGLE_HORIZ;
+				counter_2 = 0;
+			#ifdef DEBUG_ALGORITHM
+				serial_println("Angle reached the threshold", &TTL_HNDLR);
+			#endif
+			}
+			break;
+
+		case STAT_ANGLE_HORIZ:
+		case STAT_ALT_DECREASE:
+			apoge_deploy();
+			rocket_status = STAT_P1_OK_P2_NO;
+			#ifdef DEBUG_ALGORITHM
+				serial_println("Apogee parachute deploy", &TTL_HNDLR);
+			#endif
 			break;
 
 		case STAT_P1_OK_P2_NO:							//Second parachute deploy
@@ -164,29 +216,42 @@ void algorithm_1_update(flight_data_t *rocket)
 
 			if(counter == 3)
 			{
-				rocket_status = STAT_P1_OK_P2_OK;
+				rocket_status = STAT_SECOND_ALT;
 				counter = 0;
-				//serial_println("Second parachute deploy", &TTL_HNDLR);
-				main_deploy();
-
+				#ifdef DEBUG_ALGORITHM
+					serial_println("Second altitude reached", &TTL_HNDLR);
+				#endif
 			}
 			break;
 
-		case STAT_P1_OK_P2_OK:
+		case STAT_SECOND_ALT:
+			main_deploy();
+			rocket_status = STAT_P1_OK_P2_OK;
+			#ifdef DEBUG_ALGORITHM
+				serial_println("Second parachute deployed", &TTL_HNDLR);
+			#endif
+			break;
 
+		case STAT_P1_OK_P2_OK:
+			#ifdef DEBUG_ALGORITHM
+				serial_println("Everything is fine", &TTL_HNDLR);
+			#endif
 			break;
 
 		case STAT_TOUCH_DOWN:
-
+			#ifdef DEBUG_ALGORITHM
+				serial_println("Touchdown confirmed", &TTL_HNDLR);
+			#endif
 			break;
 
 		default:
 			break;
 
 	}
-
-  }
+	return rocket_status;
 }
+
+
 /*
 void algorithm_2_update(BME_280_t* BME, bmi088_struct_t* BMI)
 {

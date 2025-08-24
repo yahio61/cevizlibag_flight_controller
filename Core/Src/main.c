@@ -63,33 +63,39 @@ typedef struct bckp_sram_datas
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+bckp_sram_datas_t* const backup_datas = (bckp_sram_datas_t*) BKPSRAM_BASE;
 static bme280_struct_t 	bme_sensor_s;
 static bmi088_struct_t	bmi_imu_s;
-bckp_sram_datas_t* backup_datas = (bckp_sram_datas_t*) BKPSRAM_BASE;
-uint8_t str[200];
-extern uint8_t *dma_rx_buf;
-extern uint8_t *gps_buf;
+static e22_conf_struct_t lora_1;
+static flight_states_e rocket_status;
+
+working_mode_e working_mode = MODE_NORMAL;
+power_t power_s;
 UKB_test_t test_datas;
 flight_data_t rocket_flight_datas;
-uint8_t last_mode = 0;
-extern float euler[3];
 S_GPS_L86_DATA gps_s;
+
+extern float euler[3];
+extern uint8_t dma_rx_buf[RX_BUFFER_LEN + 10];
+extern uint8_t *gps_buf;
 
 uint32_t main_mos_counter = 0;
 uint32_t apoge_mos_counter = 0;
-extern flight_states_e rocket_status;
-static e22_conf_struct_t lora_1;
-uint8_t *packed_datas_p;
-power_t power_s;
+uint32_t last_vel_measure_time = 0;
 
+uint8_t *packed_datas_p;
+uint8_t str[200];
 uint8_t is_1000ms = 0;
 uint8_t is_200ms = 0;
 uint8_t is_10ms = 0;
 uint8_t is_1ms = 0;
+uint8_t is_telem_timer_ok = 0;
 uint8_t is_power_1s = 0;
+uint8_t last_mode = MODE_NORMAL;
+uint8_t is_dma_idle = 0;
+uint8_t	is_new_test_data = 0;
 
-int sayac = 0;
-enum working_mode_e working_mode = MODE_NORMAL;
+static float last_altitude = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -154,6 +160,7 @@ int main(void)
   MX_TIM9_Init();
   MX_ADC1_Init();
   MX_ADC2_Init();
+  MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
   HAL_PWR_EnableBkUpAccess();
   RCC->AHB1ENR |= RCC_AHB1ENR_BKPSRAMEN;
@@ -226,13 +233,12 @@ int main(void)
     HAL_TIM_Base_Start_IT(&htim4);
     HAL_TIM_Base_Start_IT(&htim5);
     HAL_TIM_Base_Start_IT(&htim6);
-    //HAL_TIM_Base_Start_IT(&htim7);
+    HAL_TIM_Base_Start_IT(&htim7);
     HAL_TIM_Base_Start_IT(&htim9);
 
-    // Start receiving DMA form GNSS UART.
-    HAL_UART_Receive_DMA(&RS232_HNDLR, dma_rx_buf, RX_BUFFER_LEN + 6);
+    // Start receiving DMA form RS232 UART.
     __HAL_UART_ENABLE_IT(&RS232_HNDLR, UART_IT_IDLE);
-
+    HAL_UART_Receive_DMA(&RS232_HNDLR, dma_rx_buf, RX_BUFFER_LEN + 6);
     //TIM9->ARR = 10000;
   /* USER CODE END 2 */
 
@@ -244,30 +250,19 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-
-
+	  if(is_dma_idle)
+	  {
+		  process_received_datas(dma_rx_buf);
+		  HAL_UART_Receive_DMA(&RS232_HNDLR, dma_rx_buf, RX_BUFFER_LEN + 6);
+		  is_dma_idle = 0;
+	  }
 	  if(get_test_mode() != last_mode)
 	  {
+		  working_mode = get_test_mode();
 		  last_mode = get_test_mode();
-		  switch(get_test_mode())
-		  {
-		  case 0:
-			  HAL_TIM_Base_Stop_IT(&htim4);
-			  HAL_TIM_Base_Stop_IT(&htim3);
-			  HAL_TIM_Base_Start_IT(&htim5);
-			  break;
-
-		  case 1:
-			  HAL_TIM_Base_Stop_IT(&htim5);
-			  HAL_TIM_Base_Start_IT(&htim3);
-			  break;
-
-		  case 2:
-			  HAL_TIM_Base_Stop_IT(&htim5);
-			  HAL_TIM_Base_Start_IT(&htim4);
-			  break;
-		  }
+		  reset_algorithm_status();
 	  }
+
 	  if(is_1000ms)	// This condition works at 1Hz.
 	  {
 		  Usr_GpsL86GetValues(&gps_s, &GPS_UART_HNDLR);
@@ -277,20 +272,86 @@ int main(void)
 	  if(is_200ms)	// This condition works at 5Hz.
 	  {
 		  packed_datas_p = packDatas(&bmi_imu_s, &bme_sensor_s, &gps_s, &power_s, rocket_status + 1);
-		  send_datas(&TTL_HNDLR, packed_datas_p, 64);	// Sends the packets via uart bridge to GCS.
+		  //send_datas(&TTL_HNDLR, packed_datas_p, 64);	// Sends the packets via uart bridge to GCS.
+		  bme_sensor_s.datas.velocity = (bme_sensor_s.datas.altitude - last_altitude) / (bme_sensor_s.datas.time_of_update - last_vel_measure_time);
+		  last_altitude = bme_sensor_s.datas.altitude;
+		  last_vel_measure_time = bme_sensor_s.datas.time_of_update;
 
-		  sayac++;
+		  switch(get_test_mode())
+		  {
+		  case MODE_NORMAL:
+
+			  break;
+
+		  case MODE_SIT_TEST:
+			  test_datas.altitude	= rocket_flight_datas.alt_sea_level;
+			  test_datas.pressure 	= bme_sensor_s.datas.pressure;
+			  test_datas.accel_x 	= rocket_flight_datas.accel_x * TO_SI;
+			  test_datas.accel_y 	= rocket_flight_datas.accel_z * TO_SI;
+			  test_datas.accel_z 	= rocket_flight_datas.accel_y * TO_SI;
+			  test_datas.angle_x 	= rocket_flight_datas.angle_x;	//bmi_imu_s.datas.gyro_x_angle;
+			  test_datas.angle_y 	= rocket_flight_datas.angle_y;
+			  test_datas.angle_z 	= rocket_flight_datas.angle_z; //bmi_imu_s.datas.gyro_z_angle;
+			  uint8_t datas_packed[36];
+			  pack_datas_for_test(datas_packed, &test_datas);
+			  HAL_UART_Transmit(&RS232_HNDLR, datas_packed, 36, 50);
+			  break;
+
+		  case MODE_SUT_TEST:
+			  rocket_flight_datas.altitude	= test_datas.altitude;
+			  rocket_flight_datas.accel_x 	= test_datas.accel_x;
+			  rocket_flight_datas.accel_y 	= test_datas.accel_y;
+			  rocket_flight_datas.accel_z 	= test_datas.accel_z;
+			  rocket_flight_datas.angle_x 	= test_datas.angle_x;
+			  rocket_flight_datas.angle_y 	= test_datas.angle_y;
+			  rocket_flight_datas.angle_z 	= test_datas.angle_z;
+			  is_new_test_data = 1;
+			  //sprintf((char*)str,"test:alt = %f, acx=%f  acy=%f  acz=%f angx=%f angy=%f angz=%f", test_datas.altitude, test_datas.accel_x,  test_datas.accel_y, test_datas.accel_z, test_datas.angle_x, test_datas.angle_y, test_datas.angle_z);
+			  //serial_println((char*)str, &TTL_HNDLR);
+			  ukb_test_stat_update(rocket_status );
+			  break;
+		  }
 		  is_200ms = 0;
 	  }
 	  if(is_10ms)// This condition works at 100Hz.
 	  {
 		  bme280_update(&bme_sensor_s);	// 100Hz call is enough for baro sensor.
+		  if(working_mode == MODE_NORMAL || working_mode == MODE_SIT_TEST)
+		  {
+			  rocket_flight_datas.velocity		= bme_sensor_s.datas.velocity;
+			  rocket_flight_datas.alt_sea_level = bme_sensor_s.datas.height;
+			  rocket_flight_datas.altitude 		= bme_sensor_s.datas.altitude;
+			  rocket_flight_datas.accel_x 		= bmi_imu_s.datas.acc_x;
+			  rocket_flight_datas.accel_y 		= bmi_imu_s.datas.acc_y;
+			  rocket_flight_datas.accel_z 		= bmi_imu_s.datas.acc_z;
+			  rocket_flight_datas.angle_x 		= euler[0];	//bmi_imu_s.datas.gyro_x_angle;
+			  rocket_flight_datas.angle_y 		= euler[1];	//bmi_imu_s.datas.gyro_y_angle;
+			  rocket_flight_datas.angle_z 		= euler[2];	//bmi_imu_s.datas.gyro_z_angle;
+		  }
 		  is_10ms = 0;
 	  }
 	  if(is_1ms)	// This condition works at 1kHz.
 	  {
 		  is_1ms = 0;
 		  calc_power(&power_s);
+		  if(working_mode == MODE_NORMAL || working_mode == MODE_SUT_TEST)
+		  {
+			  rocket_status = algorithm_update(&rocket_flight_datas, working_mode);
+		  }
+
+	  }
+	  if(is_telem_timer_ok)
+	  {
+		if(power_s.voltage > LOW_BAT)
+		{
+		  e22_chMode_transmit(&lora_1);
+		  send_datas(&TELEM_UART_HNDLR, packed_datas_p, 64);
+		}
+		else
+		{
+		  e22_chMode_sleep(&lora_1);
+		}
+		is_telem_timer_ok = 0;
 	  }
 
 	  bmi088_update(&bmi_imu_s);	// IMU sensor uses interrupts so it can be called always.
@@ -356,7 +417,7 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 uint8_t bme280_begin()
 {
-	bme_sensor_s.device_config.filter = BME280_FILTER_8;
+	bme_sensor_s.device_config.filter = BME280_FILTER_OFF;
 	bme_sensor_s.device_config.mode = BME280_MODE_NORMAL;
 	bme_sensor_s.device_config.over_sampling = BME280_OS_8;
 	bme_sensor_s.device_config.period = BME280_PERIOD_05;
@@ -415,52 +476,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM3)	// This repeats in every 1000ms
     {
-		rocket_flight_datas.altitude = test_datas.altitude;
-		rocket_flight_datas.accel_x = test_datas.accel_x;
-		rocket_flight_datas.accel_y = test_datas.accel_y;
-		rocket_flight_datas.accel_z = test_datas.accel_z;
-		rocket_flight_datas.angle_x = test_datas.angle_x;
-		rocket_flight_datas.angle_y = test_datas.angle_y;
-		rocket_flight_datas.angle_z = test_datas.angle_z;
-		algorithm_1_update(&rocket_flight_datas);
-		ukb_test_stat_update(rocket_status);
-
 		is_1000ms = 1;
     }
 
     if (htim->Instance == TIM4)	// This repeats in every 100ms
     {
-    	if(working_mode == MODE_SIT_TEST)
-    	{
-    		test_datas.altitude = rocket_flight_datas.alt_sea_level;
-    		test_datas.pressure = bme_sensor_s.datas.pressure;
-    		test_datas.accel_x 	= rocket_flight_datas.accel_x * TO_SI;
-    		test_datas.accel_y 	= rocket_flight_datas.accel_z * TO_SI;
-    		test_datas.accel_z 	= rocket_flight_datas.accel_y* TO_SI;
-    		test_datas.angle_x 	= rocket_flight_datas.angle_x;	//bmi_imu_s.datas.gyro_x_angle;
-    		test_datas.angle_y 	= rocket_flight_datas.angle_y;
-    		test_datas.angle_z 	= rocket_flight_datas.angle_z; //bmi_imu_s.datas.gyro_z_angle;
-        	uint8_t datas_packed[36];
-        	pack_datas_for_test(datas_packed, &test_datas);
-        	HAL_UART_Transmit(&RS232_HNDLR, datas_packed, 36, 50);
-    	}
-
-
     	is_200ms = 1;
     }
 
     if(htim->Instance == TIM5)	// This repeats in every 10ms
     {
-		rocket_flight_datas.altitude = bme_sensor_s.datas.altitude;
-		rocket_flight_datas.accel_x = bmi_imu_s.datas.acc_x;
-		rocket_flight_datas.accel_y = bmi_imu_s.datas.acc_y;
-		rocket_flight_datas.accel_z = bmi_imu_s.datas.acc_z;
-		rocket_flight_datas.angle_x = euler[0];	//bmi_imu_s.datas.gyro_x_angle;
-		rocket_flight_datas.angle_y = euler[1];	//bmi_imu_s.datas.gyro_y_angle;
-		rocket_flight_datas.angle_z = euler[2];	//bmi_imu_s.datas.gyro_z_angle;
-
-		//algorithm_1_update(&rocket_flight_datas);
-
 		is_10ms = 1;
     }
 
@@ -468,36 +493,28 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     {
     	is_1ms = 1;
     }
-/*
-    if(htim->Instance == TIM7)	// This block is for external pins lie buzzers leds.
-    {
-    	if(!(--main_mos_counter))
-    	{
-    		HAL_GPIO_WritePin(MAIN_MOS_GPIO_Port, MAIN_MOS_Pin, GPIO_PIN_RESET);
-    		HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, GPIO_PIN_RESET);
-    		HAL_GPIO_WritePin(MAIN_LED_GPIO_Port, MAIN_LED_Pin, GPIO_PIN_SET);
-    	}
-    	if(!(--apoge_mos_counter))
-    	{
-    		HAL_GPIO_WritePin(APOGE_MOS_GPIO_Port, APOGE_MOS_Pin, GPIO_PIN_RESET);
-    		HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, GPIO_PIN_RESET);
-    		HAL_GPIO_WritePin(APOGEE_LED_GPIO_Port, APOGEE_LED_Pin, GPIO_PIN_SET);
-    	}
-    }
- */
+
     if(htim->Instance == TIM9)	// This timer's frequency is changed by software for some purposes. Default 1Hz.
     {
-		if(power_s.voltage > 7.0)
-		{
-		  e22_chMode_transmit(&lora_1);
-		  send_datas(&TELEM_UART_HNDLR, packed_datas_p, 64);
-		}
-		else
-		{
-		  e22_chMode_sleep(&lora_1);
-		}
+    	is_telem_timer_ok = 1;
     }
 
+
+	if(htim->Instance == TIM7)	// This block is for external pins lie buzzers leds.
+	{
+		if(!(--main_mos_counter))
+		{
+			HAL_GPIO_WritePin(MAIN_MOS_GPIO_Port, MAIN_MOS_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(MAIN_LED_GPIO_Port, MAIN_LED_Pin, GPIO_PIN_SET);
+		}
+		if(!(--apoge_mos_counter))
+		{
+			HAL_GPIO_WritePin(APOGE_MOS_GPIO_Port, APOGE_MOS_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(APOGEE_LED_GPIO_Port, APOGEE_LED_Pin, GPIO_PIN_SET);
+		}
+	}
 }
 
 void main_deploy()
@@ -520,7 +537,8 @@ void calc_power(power_t* pow)
 {
 	if(is_power_1s == 1)
 	{
-		pow->current = 0;
+		pow->wattage_calced= pow->wattage;
+		pow->wattage = 0;
 		is_power_1s = 0;
 	}
 		  HAL_ADC_Start(&hadc1);
@@ -530,7 +548,8 @@ void calc_power(power_t* pow)
 		  float volt = (float)HAL_ADC_GetValue(&hadc1) * VOLT_COEF;
 		  float current = (float)HAL_ADC_GetValue(&hadc2) * CRNT_COEF;
 		  pow->voltage = volt + 0.05; // Offset val added.
-		  pow->current += volt * current * (HAL_GetTick() - pow->last_time) / 1000;
+		  pow->wattage += pow->voltage * current * (HAL_GetTick() - pow->last_time);
+		  pow->last_time = HAL_GetTick();
 }
 
 void lora_init(void)
@@ -560,6 +579,8 @@ void lora_init(void)
 	TELEM_UART_HNDLR.Init.BaudRate = 115200;
 	HAL_UART_Init(&TELEM_UART_HNDLR);
 }
+
+
 /* USER CODE END 4 */
 
 /**

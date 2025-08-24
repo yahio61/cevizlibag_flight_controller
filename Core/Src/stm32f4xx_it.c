@@ -45,6 +45,7 @@
 /* USER CODE BEGIN PV */
 uint8_t dma_rx_buf[RX_BUFFER_LEN + 10];
 uint8_t gps_buf[GPS_BUFFER_LEN];
+extern uint8_t is_dma_idle;
 extern  S_GPS_L86_DATA gps_s;
 /* USER CODE END PV */
 
@@ -64,6 +65,7 @@ extern TIM_HandleTypeDef htim3;
 extern TIM_HandleTypeDef htim4;
 extern TIM_HandleTypeDef htim5;
 extern TIM_HandleTypeDef htim6;
+extern TIM_HandleTypeDef htim7;
 extern TIM_HandleTypeDef htim9;
 extern DMA_HandleTypeDef hdma_usart3_rx;
 extern DMA_HandleTypeDef hdma_usart6_rx;
@@ -293,8 +295,7 @@ void USART3_IRQHandler(void)
 	{
 		__HAL_UART_CLEAR_IDLEFLAG(&RS232_HNDLR);
 		HAL_UART_DMAStop(&RS232_HNDLR);
-		process_received_datas(dma_rx_buf);
-		HAL_UART_Receive_DMA(&RS232_HNDLR, dma_rx_buf, RX_BUFFER_LEN + 6);
+		is_dma_idle = 1;
 	}
   /* USER CODE END USART3_IRQn 0 */
   HAL_UART_IRQHandler(&huart3);
@@ -343,6 +344,20 @@ void TIM6_DAC_IRQHandler(void)
   /* USER CODE BEGIN TIM6_DAC_IRQn 1 */
 
   /* USER CODE END TIM6_DAC_IRQn 1 */
+}
+
+/**
+  * @brief This function handles TIM7 global interrupt.
+  */
+void TIM7_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM7_IRQn 0 */
+
+  /* USER CODE END TIM7_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim7);
+  /* USER CODE BEGIN TIM7_IRQn 1 */
+
+  /* USER CODE END TIM7_IRQn 1 */
 }
 
 /**

@@ -48,12 +48,12 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
-enum working_mode_e
+typedef enum
 {
 	MODE_NORMAL = 0,
 	MODE_SIT_TEST,
-	MODE_SUT_TEST,
-};
+	MODE_SUT_TEST
+}working_mode_e;
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/

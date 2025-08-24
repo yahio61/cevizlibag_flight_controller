@@ -28,7 +28,7 @@
 #define ALGORITHM_2							//Gyro, accelerometer, pressure sensor.
 
 //************************************   Algorithms Thresholds   ************************************
-#define SECOND_DEPLOY_ALTITUDE 		(float)550		//meters		570.0
+#define SECOND_DEPLOY_ALTITUDE 		(float)2100		//meters		570.0
 
 #define ARMING_ALTITUDE				(float)2000.0		//m				1000
 #define RISING_VELOCITY_TRESHOLD	(float)10.0			//m/sn			30.0
@@ -57,7 +57,7 @@ typedef enum flight_states{
 	STAT_ROCKET_READY	=	(uint8_t)0x00,
 	STAT_FLIGHT_STARTED	=	(uint8_t)0x01,
 	STAT_MOTOR_BURNOUT	=	(uint8_t)0x02,
-	STAT_ARMING_DISABLE =	(uint8_t)0x03,
+	STAT_ARMING_PASSED 	=	(uint8_t)0x03,
 	STAT_ANGLE_HORIZ	=	(uint8_t)0x04,
 	STAT_ALT_DECREASE	=	(uint8_t)0x05,
 	STAT_P1_OK_P2_NO	=	(uint8_t)0x06,
@@ -90,7 +90,8 @@ typedef union uint16_to_uint8
 typedef struct power
 {
 	float voltage;
-	float current;
+	float wattage;
+	float wattage_calced;
 	uint32_t last_time;
 }power_t;
 

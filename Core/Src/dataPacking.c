@@ -44,7 +44,7 @@ uint8_t* packDatas(bmi088_struct_t *bmi, bme280_struct_t *bme, S_GPS_L86_DATA* g
 	veriler.dataYapi.durum = sec;
 
 	veriler.dataYapi.voltaj = (uint16_t)(int)(power_s->voltage * 100);
-	veriler.dataYapi.akim = (uint16_t)(int)(power_s->current);
+	veriler.dataYapi.akim = (uint16_t)(int)(power_s->wattage_calced);
 
 	veriler.dataYapi.sicaklik = (int8_t)(int)(bme->datas.temperature * 2);
 	veriler.dataYapi.nem = (uint8_t)(int)(bme->datas.humidity);

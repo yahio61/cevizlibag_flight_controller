@@ -38,7 +38,6 @@ typedef struct UKB_test
 }UKB_test_t;
 
 
-typedef uint8_t UKB_test_mode_t;
 
 union float_to_UINT8_converter
 {
@@ -51,7 +50,7 @@ uint8_t calc_checksum(uint8_t *packed_datas, uint16_t len);
 void process_received_datas(uint8_t *data);
 int unpack_datas_for_test(uint8_t *packed_datas, UKB_test_t *ukb_s);
 void pack_datas_for_test(uint8_t *packed_datas, UKB_test_t *ukb_s);
-UKB_test_mode_t get_test_mode();
+working_mode_e get_test_mode();
 void ukb_test_stat_update(flight_states_e status);
 
 #endif /* INC_UKB_TEST_H_ */

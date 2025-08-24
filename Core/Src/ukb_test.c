@@ -6,8 +6,7 @@
  */
 #include "ukb_test.h"
 
-
-UKB_test_mode_t mode = 0;
+working_mode_e mode = MODE_NORMAL;
 
 uint8_t sit_start[] = {0xAA,0x20,0xCA,0x0D,0x0A};
 uint8_t sut_start[] = {0xAA,0x22,0xCC,0x0D,0x0A};
@@ -16,6 +15,8 @@ uint8_t test_stop[] = {0xAA,0x24,0xCE,0x0D,0x0A};
 UKB_test_t *ukb_s;
 uint16_to_uint8_u status_data;
 
+uint8_t packet[37] = {0};
+extern uint8_t	is_new_test_data;
 /*
   ukb_test_s.pressure =
   ukb_test_s.altitude =
@@ -34,21 +35,21 @@ void ukb_test_init(UKB_test_t *UKB_datas)
 
 void process_received_datas(uint8_t *data)
 {
-	uint8_t packet[37] = {0};
+
 	memcpy(packet, data, 36);
 	packet[36] = '\0';
 
-	if(mode == 0)
+	if(mode == MODE_NORMAL)
 	{
 		if(!memcmp(packet, sut_start, 5))
 		{
 			serial_println("sut start", &TTL_HNDLR);
-			mode = 1;
+			mode = MODE_SUT_TEST;
 		}
 		else if(!memcmp(packet, sit_start, 5))
 		{
 			serial_println("sit start", &TTL_HNDLR);
-			mode = 2;
+			mode = MODE_SIT_TEST;
 		}
 	}
 	else
@@ -56,17 +57,17 @@ void process_received_datas(uint8_t *data)
 		if(!memcmp(packet, test_stop, 5))
 		{
 			serial_println("test stop", &TTL_HNDLR);
-			mode = 0;
+			mode = MODE_NORMAL;
 			reset_algorithm_status();
 			status_data.data16 = 0;
 		}
 		else
 		{
-
 			if(!unpack_datas_for_test(packet, ukb_s))
 			{
 
 			}
+
 		}
 	}
 }
@@ -191,7 +192,7 @@ void pack_datas_for_test(uint8_t *packed_datas, UKB_test_t *ukb_s)
   packed_datas[35] = 0x0A;
 }
 
-UKB_test_mode_t get_test_mode()
+working_mode_e get_test_mode()
 {
 	return mode;
 }
@@ -220,7 +221,7 @@ void ukb_test_stat_update(flight_states_e status)
 	data[4] = 0x0d;
 	data[5] = 0x0a;
 
-	//HAL_UART_Transmit(&RS232_HNDLR, data, 6, 30);
+	HAL_UART_Transmit(&RS232_HNDLR, data, 6, 30);
 }
 uint8_t calc_checksum(uint8_t *packed_datas, uint16_t len)
 {
