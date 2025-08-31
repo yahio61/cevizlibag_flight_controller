@@ -10,12 +10,15 @@
 #include <stdint.h>
 
 #define TO_MG 	(float)101.94
-#define TO_SI	(float)0.00981
+#define TO_SI	(float)0.00980665
 
 //************************************   Card Choice   ************************************
 //Comment if payload is being coded.
 #define ROCKET_CARD
 //#define ROCKET_IGNITER_TEST
+
+//#define CALC_TIME
+//#define ERASE_FLASH_CHIP
 
 //************************************   Frequency Choice   ************************************
 //freq = freq_val + 410.125
@@ -28,7 +31,7 @@
 #define ALGORITHM_2							//Gyro, accelerometer, pressure sensor.
 
 //************************************   Algorithms Thresholds   ************************************
-#define SECOND_DEPLOY_ALTITUDE 		(float)2100		//meters		570.0
+#define SECOND_DEPLOY_ALTITUDE 		(float)500.0		//meters		570.0
 
 #define ARMING_ALTITUDE				(float)2000.0		//m				1000
 #define RISING_VELOCITY_TRESHOLD	(float)10.0			//m/sn			30.0
@@ -39,8 +42,8 @@
 #define QUATERNION_ZERO_TIME		(uint32_t)12000		//ms			12000
 #define ALGORITHM_2_LOCKOUT_TIME	(uint32_t)13000		//ms			13000
 #define RISING_G_TRESHOLD 			(float)1500.0		//mG			3000.0
-#define BURNOUT_THRESHOLD			(float)-500			//mG			-2000.0
-#define ANGLE_THRESHOLD				(float)65			//degree		80.0
+#define BURNOUT_THRESHOLD			(float)-100			//mG			-2000.0
+#define ANGLE_THRESHOLD				(float)85			//degree		80.0
 
 #define IGNITER_TIME				(uint32_t)1000		//ms			100
 //#define Q_SET_ZERO_ACTIVATE
@@ -79,6 +82,7 @@ typedef struct flight_data
   float angle_y;    	// (degree)
   float angle_z;    	// (degree)
   float abs_angle;		//  Absolute angle of rocket by the world surface vector. (degree)
+  uint32_t data_taken_time;
 }flight_data_t;
 
 typedef union uint16_to_uint8

@@ -101,6 +101,12 @@ void apoge_deploy();
 #define MAIN_LED_GPIO_Port GPIOA
 #define SD_CS_Pin GPIO_PIN_4
 #define SD_CS_GPIO_Port GPIOA
+#define SD_SCK_Pin GPIO_PIN_5
+#define SD_SCK_GPIO_Port GPIOA
+#define SD_MISO_Pin GPIO_PIN_6
+#define SD_MISO_GPIO_Port GPIOA
+#define SD_MOSI_Pin GPIO_PIN_7
+#define SD_MOSI_GPIO_Port GPIOA
 #define SD_CD_Pin GPIO_PIN_4
 #define SD_CD_GPIO_Port GPIOC
 #define MAIN_MOS_Pin GPIO_PIN_0

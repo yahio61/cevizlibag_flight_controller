@@ -14,7 +14,7 @@
 
 typedef uint8_t algorithmStatus;
 
-void reset_algorithm_status();
+void reset_algorithm_status(flight_data_t *rocket);
 flight_states_e algorithm_update(flight_data_t *rocket, uint32_t);
 //void algorithm_2_update(bme280_struct_t* BME, bmi088_struct_t* BMI);
 

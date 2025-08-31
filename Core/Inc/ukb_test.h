@@ -35,6 +35,7 @@ typedef struct UKB_test
   float angle_x;    //degree
   float angle_y;    //degree
   float angle_z;    //degree
+  uint32_t data_taken_time; //(ms)
 }UKB_test_t;
 
 
@@ -52,5 +53,6 @@ int unpack_datas_for_test(uint8_t *packed_datas, UKB_test_t *ukb_s);
 void pack_datas_for_test(uint8_t *packed_datas, UKB_test_t *ukb_s);
 working_mode_e get_test_mode();
 void ukb_test_stat_update(flight_states_e status);
+void reset_test_datas();
 
 #endif /* INC_UKB_TEST_H_ */

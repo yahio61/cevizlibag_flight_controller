@@ -9,7 +9,7 @@
 #include "ukb_test.h"
 //#include "queternion.h"
 
-#define DEBUG_ALGORITHM
+//#define DEBUG_ALGORITHM
 
 extern int is_BME_ok;
 
@@ -31,8 +31,8 @@ uint32_t algorithm_2_start_time_u32 = 0;
 
 static flight_states_e rocket_status = STAT_ROCKET_READY;
 
-uint32_t counter = 0;
-uint32_t counter_2 = 0;
+static uint32_t counter = 0;
+static uint32_t counter_2 = 0;
 
 extern uint8_t	is_new_test_data;
 uint8_t buffer_alg[100];
@@ -49,9 +49,13 @@ static float resultant_accel(float accel_x, float accel_y, float accel_z)
 	return (fabs(accel_z) / (accel_z)) * sqrt(accel_x * accel_x + accel_y * accel_y + accel_z * accel_z);
 }
 
-void reset_algorithm_status()
+void reset_algorithm_status(flight_data_t *rocket)
 {
 	rocket_status = STAT_ROCKET_READY;
+	lastTime_1 = 0;
+	rocket->data_taken_time = HAL_GetTick();
+	last_altitude = 0;
+	rocket->altitude = 0;
 }
 
 /*
@@ -67,8 +71,8 @@ void reset_algorithm_status()
 flight_states_e algorithm_update(flight_data_t *rocket, uint32_t mode)
 {
 
-	currentTime_1 = HAL_GetTick();
-	uint32_t delta_time = currentTime_1 - lastTime_1;
+	//currentTime_1 = HAL_GetTick();
+	//uint32_t delta_time = rocket->data_taken_time - lastTime_1;
 	float resultanted_accel = resultant_accel(rocket->accel_x, rocket->accel_y, rocket->accel_z);
 /*
 	if(delta_time >= 90)
@@ -90,10 +94,13 @@ flight_states_e algorithm_update(flight_data_t *rocket, uint32_t mode)
 		}
 		is_new_test_data = 0;
 		rocket->abs_angle = (rocket->angle_x > rocket->angle_y) ? rocket->angle_x : rocket->angle_y;
-		rocket->velocity = (rocket->altitude - last_altitude) / (float)delta_time * 1000.0;
-		last_altitude = rocket->altitude;
-		lastTime_1 = currentTime_1;
-		char str[200];
+		//rocket->velocity = (rocket->altitude - last_altitude) / (float)(rocket->data_taken_time - lastTime_1) * 1000.0;
+		//last_altitude = rocket->altitude;
+		//lastTime_1 = rocket->data_taken_time;
+		//uint8_t str[100];
+		//sprintf((char*)str,"%f,%f", rocket->altitude, rocket->velocity);
+		//serial_println((char*)str, &TTL_HNDLR);
+		//char str[200];
 		//sprintf(str, "delt time = %d", delta_time);
 		//sprintf((char*)str,"velocity= %f  test:alt = %f, acx=%f  acy=%f  acz=%f angx=%f angy=%f angz=%f", rocket->velocity, rocket->altitude,rocket->accel_x,  rocket->accel_y, rocket->accel_z, rocket->angle_x, rocket->angle_y, rocket->angle_z);
 		//sprintf(str, "resultanted accel = %f", resultanted_accel);

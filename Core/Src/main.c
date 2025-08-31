@@ -37,6 +37,10 @@
 #include "dataPacking.h"
 #include "usr_gnss_l86_parser.h"
 #include "e22_lib.h"
+#include "dwt_profiler.h"
+#include "data_logger.h"
+#include "w25qxx.h"
+#include "filters.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -74,6 +78,7 @@ power_t power_s;
 UKB_test_t test_datas;
 flight_data_t rocket_flight_datas;
 S_GPS_L86_DATA gps_s;
+BaroAccelFilter filter_1;
 
 extern float euler[3];
 extern uint8_t dma_rx_buf[RX_BUFFER_LEN + 10];
@@ -87,6 +92,7 @@ uint8_t *packed_datas_p;
 uint8_t str[200];
 uint8_t is_1000ms = 0;
 uint8_t is_200ms = 0;
+uint8_t is_100ms = 0;
 uint8_t is_10ms = 0;
 uint8_t is_1ms = 0;
 uint8_t is_telem_timer_ok = 0;
@@ -94,6 +100,8 @@ uint8_t is_power_1s = 0;
 uint8_t last_mode = MODE_NORMAL;
 uint8_t is_dma_idle = 0;
 uint8_t	is_new_test_data = 0;
+
+int counter = 0;
 
 static float last_altitude = 0;
 /* USER CODE END PV */
@@ -106,7 +114,7 @@ uint8_t bmi088_begin(void);
 void bmi_callback(bmi088_struct_t *BMI);
 void lora_init(void);
 void calc_power(power_t* pow);
-
+void reset_fligth_datas();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -161,7 +169,11 @@ int main(void)
   MX_ADC1_Init();
   MX_ADC2_Init();
   MX_TIM7_Init();
+  MX_TIM8_Init();
   /* USER CODE BEGIN 2 */
+
+
+
   HAL_PWR_EnableBkUpAccess();
   RCC->AHB1ENR |= RCC_AHB1ENR_BKPSRAMEN;
   HAL_PWR_EnableBkUpReg();
@@ -170,6 +182,12 @@ int main(void)
   HAL_Delay(50);
   HAL_GPIO_WritePin(SENS_RES_GPIO_Port, SENS_RES_Pin, GPIO_PIN_RESET);
   HAL_Delay(50);
+
+  for(int i = 0; i < 16; i++)
+  {
+	  HAL_GPIO_TogglePin(BUZZER_GPIO_Port, BUZZER_Pin);
+	  HAL_Delay(50);
+  }
 
   uint8_t bme_ret = bme280_begin();
   if(bme_ret)
@@ -220,8 +238,27 @@ int main(void)
     UsrGpsL86Init(&GPS_UART_HNDLR);
     //VIEW_GPS()											// Read and write to TTL raw GNSS raw value.
 
+    // Filter config.
+    //baf_init(&filter_1, -bmi_imu_s.datas.acc_y, 0.3, 0.1, (float)bme_sensor_s.datas.time_of_update);
+    baf_init(&filter_1, 0, 0.3, 0.2, (float)HAL_GetTick());
+
     // Lora module config.
     lora_init();
+    data_logger_init();
+
+#ifdef ERASE_FLASH_CHIP
+    serial_println("silmeye baslandi", &TTL_HNDLR);
+    W25qxx_EraseChip();
+    serial_println("chip silindi", &TTL_HNDLR);
+    while(1);
+#endif
+
+
+    //data_logger_init();
+
+#ifdef CALC_TIME
+  dwt_profiler_init();
+#endif
 
     // Config phase finished beep.
     HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, GPIO_PIN_SET);
@@ -235,6 +272,7 @@ int main(void)
     HAL_TIM_Base_Start_IT(&htim6);
     HAL_TIM_Base_Start_IT(&htim7);
     HAL_TIM_Base_Start_IT(&htim9);
+    HAL_TIM_Base_Start_IT(&htim8);
 
     // Start receiving DMA form RS232 UART.
     __HAL_UART_ENABLE_IT(&RS232_HNDLR, UART_IT_IDLE);
@@ -249,18 +287,21 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+#ifdef CALC_TIME
+	  //PROFILE_START(PROF_MAIN_LOOP);
+#endif
 
-	  if(is_dma_idle)
-	  {
-		  process_received_datas(dma_rx_buf);
-		  HAL_UART_Receive_DMA(&RS232_HNDLR, dma_rx_buf, RX_BUFFER_LEN + 6);
-		  is_dma_idle = 0;
-	  }
 	  if(get_test_mode() != last_mode)
 	  {
 		  working_mode = get_test_mode();
 		  last_mode = get_test_mode();
-		  reset_algorithm_status();
+		  reset_algorithm_status(&rocket_flight_datas);
+		  rocket_status = STAT_ROCKET_READY;
+		  reset_test_datas();
+		  reset_fligth_datas();
+		  baf_init(&filter_1, 0, 0.3, 0.2, (float)HAL_GetTick() - 1);
+		  //sprintf((char*)str,"mode = %d", working_mode);
+		  //serial_println((char*)str, &TTL_HNDLR);
 	  }
 
 	  if(is_1000ms)	// This condition works at 1Hz.
@@ -269,18 +310,61 @@ int main(void)
 		  is_power_1s = 1;
 		  is_1000ms = 0;
 	  }
-	  if(is_200ms)	// This condition works at 5Hz.
+	  if(is_200ms)
 	  {
-		  packed_datas_p = packDatas(&bmi_imu_s, &bme_sensor_s, &gps_s, &power_s, rocket_status + 1);
-		  //send_datas(&TTL_HNDLR, packed_datas_p, 64);	// Sends the packets via uart bridge to GCS.
-		  bme_sensor_s.datas.velocity = (bme_sensor_s.datas.altitude - last_altitude) / (bme_sensor_s.datas.time_of_update - last_vel_measure_time);
-		  last_altitude = bme_sensor_s.datas.altitude;
-		  last_vel_measure_time = bme_sensor_s.datas.time_of_update;
+		  if(working_mode == MODE_NORMAL)
+		  {
+			  bme_sensor_s.datas.velocity = (bme_sensor_s.datas.altitude - last_altitude) / (bme_sensor_s.datas.time_of_update - last_vel_measure_time);
+			  //sprintf((char*)str,">velocity:%f", bme_sensor_s.datas.velocity);
+			  //serial_println((char*)str, &TTL_HNDLR);
+			  last_altitude = bme_sensor_s.datas.altitude;
 
+			  last_vel_measure_time = bme_sensor_s.datas.time_of_update;
+		  }
+
+		  is_200ms = 0;
+	  }
+	  if(is_100ms)	// This condition works at 5Hz.
+	  {
+		  //baf_step(&filter_1, bme_sensor_s.datas.altitude, -bmi_imu_s.datas.acc_y, bme_sensor_s.datas.time_of_update);
+		  //sprintf((char*)str,"h=%f \t v=%f \t time=%f \t abia=%f \t beta=%f \t alpha=%f", filter_1.h, filter_1.v, filter_1.time, filter_1.abias, filter_1.beta, filter_1.alpha);
+		  //sprintf((char*)str, "accel_x=%f \t accel_y=%f \t accelz=%f", bmi_imu_s.datas.acc_x, bmi_imu_s.datas.acc_y, bmi_imu_s.datas.acc_z);
+		  //serial_println((char*)str, &TTL_HNDLR);
+
+		  packed_datas_p = packDatas(&bmi_imu_s, &bme_sensor_s, &gps_s, &power_s, rocket_status);
+		  //send_datas(&TTL_HNDLR, packed_datas_p, 64);	// Sends the packets via uart bridge to GCS.
 		  switch(get_test_mode())
 		  {
 		  case MODE_NORMAL:
+#ifdef CALC_TIME
+			  PROFILE_START(PROF_PACKET_SEND);
+#endif
+			  //send_datas(&TTL_HNDLR, packed_datas_p, 64);
+			  //log_datas(gps_s.altitudeInMeter, gps_s.lat, gps_s.lon, gps_s.timeDateBuf, bme_sensor_s.datas.altitude, bme_sensor_s.datas.temperature, bme_sensor_s.datas.humidity);
+			  //send_datas(&RS232_HNDLR, packed_datas_p, 64);
+			  if(rocket_status > STAT_ROCKET_READY)
+			  {
+				  /*
+				  if(counter < 10)
+				  {
+					  log_datas(counter, HAL_GetTick(), filter_1.h, bme_sensor_s.datas.altitude, filter_1.v, bme_sensor_s.datas.pressure, bme_sensor_s.datas.temperature,
+							  bme_sensor_s.datas.humidity, bmi_imu_s.datas.acc_x, bmi_imu_s.datas.acc_y, bmi_imu_s.datas.acc_z,
+							  bmi_imu_s.datas.gyro_x, bmi_imu_s.datas.gyro_y, bmi_imu_s.datas.gyro_z, euler[0], euler[1], euler[2],
+							  backup_datas->q[0], backup_datas->q[1], backup_datas->q[2], backup_datas->q[3], gps_s.lat, gps_s.lon,
+							  gps_s.altitudeInMeter, gps_s.timeDateBuf, rocket_status, power_s.voltage, power_s.wattage_calced, gps_s.satInUse);
 
+				  }
+
+				  if(counter > 9 && counter < 20)
+				  {
+					  read_logged_datas(counter - 10);
+				  }
+				  counter++;
+				  */
+			  }
+#ifdef CALC_TIME
+			  PROFILE_END(PROF_PACKET_SEND);
+#endif
 			  break;
 
 		  case MODE_SIT_TEST:
@@ -298,24 +382,63 @@ int main(void)
 			  break;
 
 		  case MODE_SUT_TEST:
-			  rocket_flight_datas.altitude	= test_datas.altitude;
-			  rocket_flight_datas.accel_x 	= test_datas.accel_x;
-			  rocket_flight_datas.accel_y 	= test_datas.accel_y;
-			  rocket_flight_datas.accel_z 	= test_datas.accel_z;
-			  rocket_flight_datas.angle_x 	= test_datas.angle_x;
-			  rocket_flight_datas.angle_y 	= test_datas.angle_y;
-			  rocket_flight_datas.angle_z 	= test_datas.angle_z;
-			  is_new_test_data = 1;
-			  //sprintf((char*)str,"test:alt = %f, acx=%f  acy=%f  acz=%f angx=%f angy=%f angz=%f", test_datas.altitude, test_datas.accel_x,  test_datas.accel_y, test_datas.accel_z, test_datas.angle_x, test_datas.angle_y, test_datas.angle_z);
-			  //serial_println((char*)str, &TTL_HNDLR);
-			  ukb_test_stat_update(rocket_status );
+
+
+
+
 			  break;
+
 		  }
-		  is_200ms = 0;
+		  is_100ms = 0;
 	  }
+
+
+	  if(is_dma_idle)	// sut test
+	  {
+		  process_received_datas(dma_rx_buf);
+		  HAL_UART_Receive_DMA(&RS232_HNDLR, dma_rx_buf, RX_BUFFER_LEN + 6);
+
+		  if(working_mode == MODE_SUT_TEST)
+		  {
+			  //rocket_flight_datas.altitude			= test_datas.altitude;
+			  rocket_flight_datas.accel_x 			= test_datas.accel_x;
+			  rocket_flight_datas.accel_y 			= test_datas.accel_y;
+			  rocket_flight_datas.accel_z 			= test_datas.accel_z;
+			  rocket_flight_datas.angle_x 			= test_datas.angle_x;
+			  rocket_flight_datas.angle_y 			= test_datas.angle_y;
+			  rocket_flight_datas.angle_z 			= test_datas.angle_z;
+			  rocket_flight_datas.data_taken_time 	= test_datas.data_taken_time;
+			  //sprintf((char*)str,">velocity:%f", rocket_flight_datas.velocity);
+			  //serial_println((char*)str, &TTL_HNDLR);
+			  sprintf((char*)str,"test:alt = %f, acx=%f  acy=%f  acz=%f angx=%f angy=%f angz=%f", test_datas.altitude, rocket_flight_datas.accel_x,  rocket_flight_datas.accel_y , rocket_flight_datas.accel_z, test_datas.angle_x, test_datas.angle_y, test_datas.angle_z);
+			  serial_println((char*)str, &TTL_HNDLR);
+
+			  baf_step(&filter_1, test_datas.altitude, test_datas.accel_z / 1000,  test_datas.data_taken_time);
+			  rocket_flight_datas.altitude = filter_1.h;
+			  rocket_flight_datas.velocity = filter_1.v;
+
+			  //sprintf((char*)str,"%f,%f,%f,%f,", filter_1.h, filter_1.v, filter_1.dt, filter_1.abias);
+			  //serial_println((char*)str, &TTL_HNDLR);
+
+			  ukb_test_stat_update(rocket_status );
+			  is_new_test_data = 1;
+
+		  }
+		  is_dma_idle = 0;
+	  }
+
 	  if(is_10ms)// This condition works at 100Hz.
 	  {
+#ifdef CALC_TIME
+		  PROFILE_START(PROF_BME280_UPDATE);
+#endif
+
 		  bme280_update(&bme_sensor_s);	// 100Hz call is enough for baro sensor.
+
+#ifdef CALC_TIME
+		  PROFILE_END(PROF_BME280_UPDATE);
+#endif
+
 		  if(working_mode == MODE_NORMAL || working_mode == MODE_SIT_TEST)
 		  {
 			  rocket_flight_datas.velocity		= bme_sensor_s.datas.velocity;
@@ -353,9 +476,25 @@ int main(void)
 		}
 		is_telem_timer_ok = 0;
 	  }
+#ifdef CALC_TIME
+	  PROFILE_START(PROF_BMI088_UPDATE);
+#endif
 
 	  bmi088_update(&bmi_imu_s);	// IMU sensor uses interrupts so it can be called always.
-  }
+
+#ifdef CALC_TIME
+	  PROFILE_END(PROF_BMI088_UPDATE);
+#endif
+
+#ifdef CALC_TIME
+	  //PROFILE_END(PROF_MAIN_LOOP);
+#endif
+
+#ifdef CALC_TIME
+	  //dwt_profiler_print_results();
+	  dwt_profiler_print_compact();
+#endif
+	 }
   /* USER CODE END 3 */
 }
 
@@ -479,9 +618,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		is_1000ms = 1;
     }
 
+    if (htim->Instance == TIM8)	// This repeats in every 200ms
+	{
+    	is_200ms = 1;
+	}
+
     if (htim->Instance == TIM4)	// This repeats in every 100ms
     {
-    	is_200ms = 1;
+    	is_100ms = 1;
     }
 
     if(htim->Instance == TIM5)	// This repeats in every 10ms
@@ -498,7 +642,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     {
     	is_telem_timer_ok = 1;
     }
-
 
 	if(htim->Instance == TIM7)	// This block is for external pins lie buzzers leds.
 	{
@@ -580,6 +723,27 @@ void lora_init(void)
 	HAL_UART_Init(&TELEM_UART_HNDLR);
 }
 
+void uart_send_func(uint8_t data, uint16_t size)
+{
+
+	HAL_UART_Transmit(&TTL_HNDLR, &data, size, 20);
+}
+
+void reset_fligth_datas()
+{
+	rocket_flight_datas.abs_angle = 0;
+	rocket_flight_datas.accel_x = 0;
+	rocket_flight_datas.accel_y = 0;
+	rocket_flight_datas.accel_z = 0;
+	rocket_flight_datas.alt_sea_level = 0;
+	rocket_flight_datas.altitude = 0;
+	rocket_flight_datas.angle_x = 0;
+	rocket_flight_datas.angle_y = 0;
+	rocket_flight_datas.angle_z = 0;
+	rocket_flight_datas.data_taken_time = 0;
+	rocket_flight_datas.velocity = 0;
+	rocket_flight_datas.velocity_est = 0;
+}
 
 /* USER CODE END 4 */
 

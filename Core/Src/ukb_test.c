@@ -5,6 +5,7 @@
  *      Author: yahya
  */
 #include "ukb_test.h"
+#include "filters.h"
 
 working_mode_e mode = MODE_NORMAL;
 
@@ -17,6 +18,7 @@ uint16_to_uint8_u status_data;
 
 uint8_t packet[37] = {0};
 extern uint8_t	is_new_test_data;
+extern BaroAccelFilter filter_1;
 /*
   ukb_test_s.pressure =
   ukb_test_s.altitude =
@@ -27,6 +29,21 @@ extern uint8_t	is_new_test_data;
   ukb_test_s.angle_Y  =
   ukb_test_s.angle_Z  =
  */
+
+void reset_test_datas()
+{
+	ukb_s->altitude = 0;
+	ukb_s->accel_x = 0;
+	ukb_s->accel_y = 0;
+	ukb_s->accel_z = 0;
+	ukb_s->angle_x = 0;
+	ukb_s->angle_y = 0;
+	ukb_s->angle_z = 0;
+	ukb_s->pressure = 0;
+	ukb_s->data_taken_time = HAL_GetTick();
+	status_data.data16 = STAT_ROCKET_READY;
+}
+
 void ukb_test_init(UKB_test_t *UKB_datas)
 {
 	ukb_s = UKB_datas;
@@ -45,6 +62,7 @@ void process_received_datas(uint8_t *data)
 		{
 			serial_println("sut start", &TTL_HNDLR);
 			mode = MODE_SUT_TEST;
+			filter_1.last_time = HAL_GetTick();
 		}
 		else if(!memcmp(packet, sit_start, 5))
 		{
@@ -58,7 +76,6 @@ void process_received_datas(uint8_t *data)
 		{
 			serial_println("test stop", &TTL_HNDLR);
 			mode = MODE_NORMAL;
-			reset_algorithm_status();
 			status_data.data16 = 0;
 		}
 		else
@@ -127,7 +144,7 @@ int unpack_datas_for_test(uint8_t *packed_datas, UKB_test_t *ukb_s)
     var.array[arr_2] = packed_datas[31];
     var.array[arr_3] = packed_datas[32];
     ukb_s->angle_z = var.num;
-
+    ukb_s->data_taken_time = HAL_GetTick();
     return 0;
   }
   return 1;
@@ -136,7 +153,7 @@ int unpack_datas_for_test(uint8_t *packed_datas, UKB_test_t *ukb_s)
 void pack_datas_for_test(uint8_t *packed_datas, UKB_test_t *ukb_s)
 {
   union float_to_UINT8_converter var;
-  packed_datas[0] = 0xAB;
+  packed_datas[0] = (uint8_t)0xAB;
 
   var.num = ukb_s->altitude;
   packed_datas[1] = var.array[arr_0];
@@ -188,40 +205,44 @@ void pack_datas_for_test(uint8_t *packed_datas, UKB_test_t *ukb_s)
 
   packed_datas[33] = calc_checksum(packed_datas, 33);
 
-  packed_datas[34] = 0x0D;
-  packed_datas[35] = 0x0A;
+  packed_datas[34] = (uint8_t)0x0D;
+  packed_datas[35] = (uint8_t)0x0A;
 }
 
 working_mode_e get_test_mode()
 {
 	return mode;
 }
-/* 	STAT_ROCKET_READY	=	(uint8_t)0x00,
+/*
+	STAT_ROCKET_READY	=	(uint8_t)0x00,
 	STAT_FLIGHT_STARTED	=	(uint8_t)0x01,
 	STAT_MOTOR_BURNOUT	=	(uint8_t)0x02,
-	STAT_ARMING_DISABLE =	(uint8_t)0x03,
+	STAT_ARMING_PASSED 	=	(uint8_t)0x03,
 	STAT_ANGLE_HORIZ	=	(uint8_t)0x04,
 	STAT_ALT_DECREASE	=	(uint8_t)0x05,
 	STAT_P1_OK_P2_NO	=	(uint8_t)0x06,
-	STAT_P1_OK_P2_OK	=	(uint8_t)0x07,
-	STAT_TOUCH_DOWN		=	(uint8_t)0x08,
-	STAT_P1_NO_P2_OK	=	(uint8_t)0x09,
+	STAT_SECOND_ALT		=	(uint8_t)0x07,
+	STAT_P1_OK_P2_OK	=	(uint8_t)0x08,
+	STAT_TOUCH_DOWN		=	(uint8_t)0x09,
  */
 
 void ukb_test_stat_update(flight_states_e status)
 {
-
-	status_data.data16 = ((1 << (status)) - 1) | status;
+if(status > STAT_ROCKET_READY)
+{
+	status_data.data16 = (1 << (status - 1)) | status_data.data16;
 	uint8_t data[7];
 
 	data[0] = 0xaa;
 	data[1] = status_data.data8[0];
 	data[2] = status_data.data8[1];
 	data[3] = calc_checksum(data, 3);
-	data[4] = 0x0d;
-	data[5] = 0x0a;
+	data[4] = (uint8_t)0x0D;
+	data[5] = (uint8_t)0x0A;
 
 	HAL_UART_Transmit(&RS232_HNDLR, data, 6, 30);
+}
+
 }
 uint8_t calc_checksum(uint8_t *packed_datas, uint16_t len)
 {
