@@ -66,8 +66,9 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 void serial_println(char* str, UART_HandleTypeDef *huart_disp);
-void main_deploy();
-void apoge_deploy();
+void main_deploy(int time_ms);
+void apoge_deploy(int time_ms);
+void beep(int time_ms);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

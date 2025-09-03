@@ -7,9 +7,11 @@
 #include "main.h"
 #include "algorithms.h"
 #include "ukb_test.h"
+#include "configuration.h"
+
 //#include "queternion.h"
 
-//#define DEBUG_ALGORITHM
+
 
 extern int is_BME_ok;
 
@@ -17,6 +19,7 @@ uint32_t currentTime_1 = 0;
 uint32_t currentTime_2 = 0;
 uint32_t lastTime_1 = 0;
 uint32_t lastTime_2 = 0;
+uint32_t flight_starting_time = 0;
 static float last_altitude = 0.0;
 float lastAltitude_2 = 0.0;
 
@@ -36,6 +39,7 @@ static uint32_t counter_2 = 0;
 
 extern uint8_t	is_new_test_data;
 uint8_t buffer_alg[100];
+uint8_t is_angle_active = 1;
 
 /*
 static double sqr(double nmbr)
@@ -46,7 +50,7 @@ static double sqr(double nmbr)
 
 static float resultant_accel(float accel_x, float accel_y, float accel_z)
 {
-	return (fabs(accel_z) / (accel_z)) * sqrt(accel_x * accel_x + accel_y * accel_y + accel_z * accel_z);
+	return (fabs(accel_z) / (accel_z)) * sqrtf(accel_x * accel_x + accel_y * accel_y + accel_z * accel_z);
 }
 
 void reset_algorithm_status(flight_data_t *rocket)
@@ -88,12 +92,12 @@ flight_states_e algorithm_update(flight_data_t *rocket, uint32_t mode)
 */
 	if(mode == MODE_SUT_TEST)
 	{
-		if(!is_new_test_data)
+		if(!rocket->is_new_data)
 		{
 			return rocket_status;
 		}
-		is_new_test_data = 0;
-		rocket->abs_angle = (rocket->angle_x > rocket->angle_y) ? rocket->angle_x : rocket->angle_y;
+		rocket->is_new_data = 0;
+		rocket->abs_angle = (fabs(rocket->angle_x) > fabs(rocket->angle_y)) ? rocket->angle_x : rocket->angle_y;
 		//rocket->velocity = (rocket->altitude - last_altitude) / (float)(rocket->data_taken_time - lastTime_1) * 1000.0;
 		//last_altitude = rocket->altitude;
 		//lastTime_1 = rocket->data_taken_time;
@@ -106,11 +110,21 @@ flight_states_e algorithm_update(flight_data_t *rocket, uint32_t mode)
 		//sprintf(str, "resultanted accel = %f", resultanted_accel);
 		//serial_println((char*)str, &TTL_HNDLR);
 	}
+	else if(mode == MODE_NORMAL)
+	{
+		if(!rocket->is_new_data)
+		{
+			return rocket_status;
+		}
+
+
+		rocket->is_new_data = 0;
+	}
 
 	switch(rocket_status)
 	{
 		case STAT_ROCKET_READY:						//rising detection
-			if(rocket->velocity > RISING_VELOCITY_TRESHOLD || resultanted_accel > RISING_G_TRESHOLD)
+			if(rocket->velocity > RISING_VELOCITY_TRESHOLD || fabs(resultanted_accel) > RISING_G_TRESHOLD)
 			{
 				counter++;
 			}
@@ -119,10 +133,12 @@ flight_states_e algorithm_update(flight_data_t *rocket, uint32_t mode)
 				counter = 0;
 			}
 
-			if(counter == 3)
+			if(counter >= 3)
 			{
 				rocket_status = STAT_FLIGHT_STARTED;
 				counter = 0;
+				flight_starting_time = HAL_GetTick();
+				beep(500);
 			#ifdef DEBUG_ALGORITHM
 				serial_println("Fligth started", &TTL_HNDLR);
 			#endif
@@ -130,19 +146,32 @@ flight_states_e algorithm_update(flight_data_t *rocket, uint32_t mode)
 			break;
 
 		case STAT_FLIGHT_STARTED:					//Burnout detect
+
 			if(resultanted_accel < BURNOUT_THRESHOLD)
 			{
 				counter++;
+			}
+			else if(HAL_GetTick() - flight_starting_time > 5000)
+			{
+				rocket_status = STAT_MOTOR_BURNOUT;
+				counter = 0;
 			}
 			else
 			{
 				counter = 0;
 			}
 
-			if(counter == 3)
+
+			if(rocket->abs_angle > ANGLE_PASIVE_THRESHOLD)
+			{
+				//is_angle_active = 0;
+			}
+
+			if(counter >= 3)
 			{
 				rocket_status = STAT_MOTOR_BURNOUT;
 				counter = 0;
+				beep(500);
 			#ifdef DEBUG_ALGORITHM
 				serial_println("Burnout detected", &TTL_HNDLR);
 			#endif
@@ -159,10 +188,11 @@ flight_states_e algorithm_update(flight_data_t *rocket, uint32_t mode)
 				counter = 0;
 			}
 
-			if(counter == 3)
+			if(counter >= 3)
 			{
 				rocket_status = STAT_ARMING_PASSED;
 				counter = 0;
+				beep(500);
 			#ifdef DEBUG_ALGORITHM
 				serial_println("Arming altitude reached", &TTL_HNDLR);
 			#endif
@@ -172,30 +202,41 @@ flight_states_e algorithm_update(flight_data_t *rocket, uint32_t mode)
 		case STAT_ARMING_PASSED:
 			if(rocket->velocity < FALLING_VELOCITY_TRESHOLD) //Falling detection via pressure sensor.
 			{
-				counter++;
+				if(HAL_GetTick() - flight_starting_time > 15000)
+				{
+					counter++;
+				}
 			}
-			else if(rocket->abs_angle > ANGLE_THRESHOLD)	//Falling detection via IMU sensor.
+			else
+			{
+				counter = 0;
+			}
+			sprintf((char*)buffer_alg,"abs_angle:%f\n\r", rocket->abs_angle);
+			serial_println((char*)buffer_alg, &TTL_HNDLR);
+
+			if((fabs(rocket->abs_angle) > ANGLE_THRESHOLD) && is_angle_active)	//Falling detection via IMU sensor.
 			{
 				counter_2++;
 			}
 			else
 			{
-				counter = 0;
 				counter_2 = 0;
 			}
 
-			if(counter == 3)
+			if(counter >= 3)
 			{
 				rocket_status = STAT_ALT_DECREASE;
 				counter = 0;
+
 			#ifdef DEBUG_ALGORITHM
 				serial_println("Altitude decreasing", &TTL_HNDLR);
 			#endif
 			}
-			else if(counter_2 == 3)
+			if(counter_2 >= 3)
 			{
 				rocket_status = STAT_ANGLE_HORIZ;
 				counter_2 = 0;
+
 			#ifdef DEBUG_ALGORITHM
 				serial_println("Angle reached the threshold", &TTL_HNDLR);
 			#endif
@@ -204,7 +245,7 @@ flight_states_e algorithm_update(flight_data_t *rocket, uint32_t mode)
 
 		case STAT_ANGLE_HORIZ:
 		case STAT_ALT_DECREASE:
-			apoge_deploy();
+			apoge_deploy(IGNITER_TIME);
 			rocket_status = STAT_P1_OK_P2_NO;
 			#ifdef DEBUG_ALGORITHM
 				serial_println("Apogee parachute deploy", &TTL_HNDLR);
@@ -232,7 +273,7 @@ flight_states_e algorithm_update(flight_data_t *rocket, uint32_t mode)
 			break;
 
 		case STAT_SECOND_ALT:
-			main_deploy();
+			main_deploy(IGNITER_TIME);
 			rocket_status = STAT_P1_OK_P2_OK;
 			#ifdef DEBUG_ALGORITHM
 				serial_println("Second parachute deployed", &TTL_HNDLR);
@@ -240,15 +281,30 @@ flight_states_e algorithm_update(flight_data_t *rocket, uint32_t mode)
 			break;
 
 		case STAT_P1_OK_P2_OK:
+			if(fabs(rocket->gyro_x) < 0.5 && fabs(rocket->gyro_y) < 0.5 && fabs(rocket->gyro_z) < 0.5)
+			{
+				counter++;
+			}
+			else
+			{
+				counter = 0;
+			}
+
+			if(counter == 3)
+			{
+				rocket_status = STAT_TOUCH_DOWN;
+				counter = 0;
+				beep(500);
 			#ifdef DEBUG_ALGORITHM
-				serial_println("Everything is fine", &TTL_HNDLR);
+				serial_println("Touchdown confirmed", &TTL_HNDLR);
+
 			#endif
+			}
+
 			break;
 
 		case STAT_TOUCH_DOWN:
-			#ifdef DEBUG_ALGORITHM
-				serial_println("Touchdown confirmed", &TTL_HNDLR);
-			#endif
+
 			break;
 
 		default:

@@ -24,11 +24,11 @@ static uint8_t calculateCRC()
   */
 void send_datas(UART_HandleTypeDef* huart, uint8_t* data, uint16_t len)
 {
-	HAL_UART_Transmit(huart, data, len, 50);
+	HAL_UART_Transmit_DMA(huart, data, len);
 }
 
 
-uint8_t* packDatas(bmi088_struct_t *bmi, bme280_struct_t *bme, S_GPS_L86_DATA* gps , power_t *power_s, uint16_t status)
+uint8_t* packDatas(bmi088_struct_t *bmi, bme280_struct_t *bme, S_GPS_L86_DATA* gps , power_t *power_s, uint16_t status, flight_data_t *rocket)
 {
 	veriler.dataYapi.basla = 0xFF;
 
@@ -49,7 +49,7 @@ uint8_t* packDatas(bmi088_struct_t *bmi, bme280_struct_t *bme, S_GPS_L86_DATA* g
 	veriler.dataYapi.sicaklik = (int8_t)(int)(bme->datas.temperature * 2);
 	veriler.dataYapi.nem = (uint8_t)(int)(bme->datas.humidity);
 
-	veriler.dataYapi.yukseklik_p = bme->datas.altitude;
+	veriler.dataYapi.yukseklik_p = rocket->altitude;
 #ifdef ROCKET_CARD
 	veriler.dataYapi.maxAltitude = (int16_t)(int)bme->parameters->max_alt;
 #else
@@ -69,7 +69,7 @@ uint8_t* packDatas(bmi088_struct_t *bmi, bme280_struct_t *bme, S_GPS_L86_DATA* g
 	veriler.dataYapi.accZ = (status > STAT_ROCKET_READY) ? (-bmi->datas.acc_y / 1000) - 1.0 : bmi->datas.acc_y / 1000;
 
 	veriler.dataYapi.uyduSayisi = ((uint8_t)gps->satInUse << 3) | (((int)euler[0] & 0x8000) >> 13) | (((int)euler[1] & 0x8000) >> 14) | (((int)euler[2] & 0x8000) >> 15);
-	veriler.dataYapi.hiz = (int16_t)(int)(bme->datas.velocity * 10);
+	veriler.dataYapi.hiz = (int16_t)(int)(rocket->velocity * 10);
 
 	veriler.dataYapi.aci = quaternionToTheta();
 	veriler.dataYapi.pitch = (uint8_t)((int)abs(euler[0]));

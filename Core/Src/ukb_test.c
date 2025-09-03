@@ -41,7 +41,7 @@ void reset_test_datas()
 	ukb_s->angle_z = 0;
 	ukb_s->pressure = 0;
 	ukb_s->data_taken_time = HAL_GetTick();
-	status_data.data16 = STAT_ROCKET_READY;
+	status_data.data16 = (uint16_t)STAT_ROCKET_READY;
 }
 
 void ukb_test_init(UKB_test_t *UKB_datas)
@@ -228,21 +228,28 @@ working_mode_e get_test_mode()
 
 void ukb_test_stat_update(flight_states_e status)
 {
-if(status > STAT_ROCKET_READY)
-{
-	status_data.data16 = (1 << (status - 1)) | status_data.data16;
-	uint8_t data[7];
+	if(status > STAT_ROCKET_READY)
+	{
+		if(status == STAT_ANGLE_HORIZ || status == STAT_ALT_DECREASE)
+		{
+			status_data.data16 = (0x3 << (3)) | status_data.data16;
+		}
+		else
+		{
+			status_data.data16 = (1 << (status - 1)) | status_data.data16;
+		}
 
-	data[0] = 0xaa;
-	data[1] = status_data.data8[0];
-	data[2] = status_data.data8[1];
-	data[3] = calc_checksum(data, 3);
-	data[4] = (uint8_t)0x0D;
-	data[5] = (uint8_t)0x0A;
+		uint8_t data[7];
 
-	HAL_UART_Transmit(&RS232_HNDLR, data, 6, 30);
-}
+		data[0] = 0xaa;
+		data[1] = status_data.data8[0];
+		data[2] = status_data.data8[1];
+		data[3] = calc_checksum(data, 3);
+		data[4] = (uint8_t)0x0D;
+		data[5] = (uint8_t)0x0A;
 
+		HAL_UART_Transmit(&RS232_HNDLR, data, 6, 30);
+	}
 }
 uint8_t calc_checksum(uint8_t *packed_datas, uint16_t len)
 {

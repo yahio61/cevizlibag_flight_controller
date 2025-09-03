@@ -11,41 +11,37 @@
 
 #define TO_MG 	(float)101.94
 #define TO_SI	(float)0.00980665
+#define DEG2RAD(x) ((x) * 3.14159265358979323846f / 180.0f)
 
 //************************************   Card Choice   ************************************
 //Comment if payload is being coded.
 #define ROCKET_CARD
 //#define ROCKET_IGNITER_TEST
+#define DEBUG_ALGORITHM
 
 //#define CALC_TIME
 //#define ERASE_FLASH_CHIP
 
 //************************************   Frequency Choice   ************************************
 //freq = freq_val + 410.125
-#define ROCKET_TELEM_FREQ			25;					//435.125 MHz
-#define PAYLOAD_TELEM_FREQ			30;					//440.125 MHz
+#define ROCKET_TELEM_FREQ			30;					//435.125 MHz
+#define PAYLOAD_TELEM_FREQ			25;					//440.125 MHz
 
 //************************************   Algorithms Choices   ************************************
 //Uncomment if the algorithm used.
-#define ALGORITHM_1							//Only pressure sensor (vertical velocity, altitude)
-#define ALGORITHM_2							//Gyro, accelerometer, pressure sensor.
 
 //************************************   Algorithms Thresholds   ************************************
-#define SECOND_DEPLOY_ALTITUDE 		(float)500.0		//meters		570.0
-
-#define ARMING_ALTITUDE				(float)2000.0		//m				1000
+#define RISING_G_TRESHOLD 			(float)3.0			//G				3.0
 #define RISING_VELOCITY_TRESHOLD	(float)10.0			//m/sn			30.0
-#define ALGORITHM_1_LOCKOUT_TIME	(uint32_t)13000		//ms			13000
-#define FALLING_VELOCITY_TRESHOLD	(float)3.0			//m/sn			3.0
-
-//#define ARMING_ALTITUDE_2			(float)-10.0		//m				1000
-#define QUATERNION_ZERO_TIME		(uint32_t)12000		//ms			12000
-#define ALGORITHM_2_LOCKOUT_TIME	(uint32_t)13000		//ms			13000
-#define RISING_G_TRESHOLD 			(float)1500.0		//mG			3000.0
-#define BURNOUT_THRESHOLD			(float)-100			//mG			-2000.0
-#define ANGLE_THRESHOLD				(float)85			//degree		80.0
+#define BURNOUT_THRESHOLD			(float)-0.100		//mG			-2000.0
+#define ARMING_ALTITUDE				(float)1400			//m				4000
+#define FALLING_VELOCITY_TRESHOLD	(float)2.0			//m/sn			3.0
+#define ANGLE_THRESHOLD				(float)49			//degree		80.0
+#define SECOND_DEPLOY_ALTITUDE		(float)570			//meters		570
 
 #define IGNITER_TIME				(uint32_t)1000		//ms			100
+#define ANGLE_PASIVE_THRESHOLD		(float)10			//degree		10.0
+
 //#define Q_SET_ZERO_ACTIVATE
 //************************************   Battery Settings   ************************************
 #define LOW_BAT						(float)7.0			// Low battery threshold (V)
@@ -78,11 +74,15 @@ typedef struct flight_data
   float accel_x;    	// (m/s^2)
   float accel_y;    	// (m/s^2)
   float accel_z;    	// (m/s^2)
+  float gyro_x;
+  float gyro_y;
+  float gyro_z;
   float angle_x;    	// (degree)
   float angle_y;    	// (degree)
   float angle_z;    	// (degree)
   float abs_angle;		//  Absolute angle of rocket by the world surface vector. (degree)
   uint32_t data_taken_time;
+  uint8_t is_new_data;
 }flight_data_t;
 
 typedef union uint16_to_uint8

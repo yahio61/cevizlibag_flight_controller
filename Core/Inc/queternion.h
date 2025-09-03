@@ -18,4 +18,6 @@ void quaternionToEuler(void);
 void quaternionSet_zero(void);
 void getInitialQuaternion(float acc_x, float acc_y, float acc_z);
 float quaternionToTheta(void);
+float invSqrt(float x);
+void MahonyAHRSupdateIMU(float gx, float gy, float gz, float ax_f, float ay_f, float az_f, float dt);
 #endif
